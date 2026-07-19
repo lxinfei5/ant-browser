@@ -13,6 +13,13 @@ func cloneAutomationGitRepository(repoURL string, ref string) (string, func(), e
 	if _, err := exec.LookPath("git"); err != nil {
 		return "", nil, fmt.Errorf("未找到 git，可先安装 git 后再导入仓库脚本")
 	}
+	// 防止 git 选项注入：拒绝以 - 开头的仓库地址/引用，避免被当作 git 选项。
+	if strings.HasPrefix(repoURL, "-") {
+		return "", nil, fmt.Errorf("Git 仓库地址不能以 - 开头")
+	}
+	if strings.HasPrefix(ref, "-") {
+		return "", nil, fmt.Errorf("Git 引用不能以 - 开头")
+	}
 
 	tempDir, err := os.MkdirTemp("", "ant-automation-git-*")
 	if err != nil {

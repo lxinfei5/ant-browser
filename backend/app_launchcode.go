@@ -107,7 +107,7 @@ func (a *App) GetLaunchServerInfo() map[string]interface{} {
 	authHeader := launchcode.DefaultAPIKeyHeader
 	if a.config != nil {
 		preferredPort = a.config.LaunchServer.Port
-		authRequested = a.config.LaunchServer.Auth.Enabled
+		authRequested = a.config.LaunchServer.Auth.IsEnabled()
 		authConfigured = a.config.LaunchServer.Auth.APIKey != ""
 		if header := a.config.LaunchServer.Auth.Header; header != "" {
 			authHeader = header

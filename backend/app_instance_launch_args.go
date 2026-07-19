@@ -100,6 +100,20 @@ func mergeStartURLs(groups ...[]string) []string {
 	return out
 }
 
+// sanitizeStartURLsForArgv 过滤掉以 "--" 开头的 StartURL，防止其作为 Chrome flag 注入到 argv。
+// 仅用于会拼接到进程 argv 的路径；CDP light-start（Target.createTarget）路径不调用此函数。
+func sanitizeStartURLsForArgv(urls []string) []string {
+	out := make([]string, 0, len(urls))
+	for _, item := range normalizeNonEmptyStrings(urls) {
+		if strings.HasPrefix(item, "--") {
+			logger.New("Browser").Warn("已剔除以 -- 开头的可疑 StartURL（防止 flag 注入）", logger.F("url", item))
+			continue
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
 func browserRestoreLastSession(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
@@ -136,7 +150,10 @@ func (a *App) openBrowserWindowForRunningProfile(profile *BrowserProfile, extraL
 		return err
 	}
 
-	userDataDir := a.browserMgr.ResolveUserDataDir(profile)
+	userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+	if dirErr != nil {
+		return fmt.Errorf("用户数据目录无效：%w", dirErr)
+	}
 	if err := os.MkdirAll(userDataDir, 0755); err != nil {
 		return fmt.Errorf("无法创建用户数据目录 %s：%w", userDataDir, err)
 	}
@@ -147,8 +164,9 @@ func (a *App) openBrowserWindowForRunningProfile(profile *BrowserProfile, extraL
 	sanitizedExtraLaunchArgs, managedExtraArgs := sanitizeManagedLaunchArgs(extraLaunchArgs)
 	logManagedLaunchArgOverrides(logger.New("Browser"), profile.ProfileId, "running-window.extraLaunchArgs", managedExtraArgs)
 	args = append(args, sanitizedExtraLaunchArgs...)
-	if len(startURLs) > 0 {
-		args = append(args, startURLs...)
+	safeStartURLs := sanitizeStartURLsForArgv(startURLs)
+	if len(safeStartURLs) > 0 {
+		args = append(args, safeStartURLs...)
 	} else {
 		args = append(args, "about:blank")
 	}

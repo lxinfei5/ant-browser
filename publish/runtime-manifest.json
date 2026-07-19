@@ -73,6 +73,30 @@
       "targets": [
         "darwin-arm64"
       ]
+    },
+    {
+      "path": "bin/linux-amd64/mihomo",
+      "sha256": "",
+      "targets": ["linux-amd64"],
+      "note": "mihomo 解压后二进制 sha256 待用官方归档实际值填写；下载时已通过 GitHub release asset digest 校验。"
+    },
+    {
+      "path": "bin/linux-arm64/mihomo",
+      "sha256": "",
+      "targets": ["linux-arm64"],
+      "note": "mihomo 解压后二进制 sha256 待用官方归档实际值填写；下载时已通过 GitHub release asset digest 校验。"
+    },
+    {
+      "path": "bin/darwin-arm64/mihomo",
+      "sha256": "",
+      "targets": ["darwin-arm64"],
+      "note": "mihomo 解压后二进制 sha256 待用官方归档实际值填写；下载时已通过 GitHub release asset digest 校验。"
+    },
+    {
+      "path": "bin/windows-amd64/mihomo.exe",
+      "sha256": "",
+      "targets": ["windows-amd64"],
+      "note": "mihomo 解压后二进制 sha256 待用官方归档实际值填写；下载时已通过 GitHub release asset digest 校验。"
     }
   ]
 }

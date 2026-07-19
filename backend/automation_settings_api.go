@@ -2,6 +2,7 @@ package backend
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"ant-chrome/backend/internal/config"
@@ -90,12 +91,25 @@ func (a *App) AutomationProbeSystemNode(systemNodePath string) (map[string]inter
 		return nil, fmt.Errorf("automation runtime manager is not initialized")
 	}
 
-	explicitPath := strings.TrimSpace(systemNodePath)
-	if explicitPath == "" && a.config != nil {
-		explicitPath = strings.TrimSpace(a.config.Automation.SystemNodePath)
+	// 安全：仅允许探测已注册/受管的运行时 Node，拒绝任意路径以防被引导执行任意可执行文件。
+	registeredPath := strings.TrimSpace(a.automationMgr.CurrentState().NodePath)
+	requested := strings.TrimSpace(systemNodePath)
+	if requested == "" && a.config != nil {
+		requested = strings.TrimSpace(a.config.Automation.SystemNodePath)
+	}
+	if requested != "" && !sameNodePath(requested, registeredPath) {
+		return nil, fmt.Errorf("拒绝探测任意 Node 路径 %q（仅允许已注册的受管运行时 Node）", requested)
 	}
 
-	result, err := a.automationMgr.ProbeSystemNode(a.ctx, explicitPath)
+	probePath := requested
+	if probePath == "" {
+		probePath = registeredPath
+	}
+	if probePath == "" {
+		return nil, fmt.Errorf("未找到已注册的受管 Node，请先安装运行时")
+	}
+
+	result, err := a.automationMgr.ProbeSystemNode(a.ctx, probePath)
 	if err != nil {
 		return nil, err
 	}
@@ -105,6 +119,18 @@ func (a *App) AutomationProbeSystemNode(systemNodePath string) (map[string]inter
 		"path":    result.Path,
 		"version": result.Version,
 	}, nil
+}
+
+// sameNodePath 判断两个 Node 路径是否指向同一文件（按绝对路径归一化比较，大小写不敏感）。
+func sameNodePath(a, b string) bool {
+	abs := func(p string) string {
+		p = strings.TrimSpace(p)
+		if ap, err := filepath.Abs(p); err == nil {
+			return ap
+		}
+		return p
+	}
+	return strings.EqualFold(filepath.Clean(abs(a)), filepath.Clean(abs(b)))
 }
 
 func (a *App) AutomationRuntimeSelfCheck() (map[string]interface{}, error) {

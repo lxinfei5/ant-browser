@@ -62,6 +62,13 @@ var (
 		".mjs":  {},
 		".json": {},
 	}
+	// deniedNodeBuiltinModules 为危险内置模块黑名单，无论来源一律拒绝（防止脚本逃逸沙箱/取得 RCE）。
+	// 仅拦截能直接执行代码或逃逸进程边界的模块（child_process、vm）；fs/os/net 是合法脚本 I/O，
+	// 内置 demo（news-query-txt、web-image-generate-download 等）与 runner 均依赖 fs，故不拦截。
+	deniedNodeBuiltinModules = map[string]struct{}{
+		"child_process": {},
+		"vm":            {},
+	}
 )
 
 type importedPackageJSON struct {

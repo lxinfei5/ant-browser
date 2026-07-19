@@ -25,6 +25,8 @@ type githubReleaseAsset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
 	Size               int64  `json:"size"`
+	// Digest 是 GitHub API 返回的每资产摘要（形如 "sha256:<hex>"），用于校验下载归档完整性。
+	Digest            string `json:"digest"`
 }
 
 func proxyCoreHTTPClient(timeout time.Duration, proxyConfig string) (*http.Client, string, error) {
@@ -136,6 +138,8 @@ func selectProxyCoreAsset(spec proxyCoreSpec, assets []githubReleaseAsset, goos 
 		extTokens = []string{".zip"}
 	}
 	badTokens := []string{"sha", "checksum", "dgst", ".sig", ".asc", "source", "geoip", "geosite"}
+	// 注意：此处 badTokens 仅用于“二进制归档”筛选，确保不会把校验类资产当成二进制选中。
+	// 校验类资产（.dgst/.sha256/.sig/.asc 等）仍保留在 release.Assets 中，由下载完整性校验逻辑（fetchProxyCoreOfficialChecksum）使用。
 	candidates := make([]githubReleaseAsset, 0)
 	for _, asset := range assets {
 		name := strings.ToLower(asset.Name)
@@ -148,6 +152,9 @@ func selectProxyCoreAsset(spec proxyCoreSpec, assets []githubReleaseAsset, goos 
 		if spec.Core == "mihomo" && !strings.Contains(name, "compatible") {
 			continue
 		}
+		if err := validateProxyCoreAssetURL(asset.BrowserDownloadURL); err != nil {
+			continue
+		}
 		candidates = append(candidates, asset)
 	}
 	if len(candidates) == 0 && spec.Core == "mihomo" {
@@ -155,7 +162,7 @@ func selectProxyCoreAsset(spec proxyCoreSpec, assets []githubReleaseAsset, goos 
 		fallbackSpec.Core = "mihomo-fallback"
 		for _, asset := range assets {
 			name := strings.ToLower(asset.Name)
-			if hasAnySuffix(name, extTokens) && !containsAny(name, badTokens) && containsAny(name, osTokens[goos]) && matchesProxyAssetArch(name, goarch, archTokens[goarch]) {
+			if hasAnySuffix(name, extTokens) && !containsAny(name, badTokens) && containsAny(name, osTokens[goos]) && matchesProxyAssetArch(name, goarch, archTokens[goarch]) && validateProxyCoreAssetURL(asset.BrowserDownloadURL) == nil {
 				candidates = append(candidates, asset)
 			}
 		}
@@ -210,6 +217,9 @@ func assetScore(spec proxyCoreSpec, name string) int {
 }
 
 func downloadProxyCoreAsset(ctx context.Context, client *http.Client, url string, file *os.File, totalSize int64, send func(string, int, string)) error {
+	if err := validateProxyCoreAssetURL(url); err != nil {
+		return err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return err

@@ -9,6 +9,10 @@ func (s *ScriptStore) validateRecord(record ScriptRecord) error {
 	if err := validateScriptPublicAPIConfig(record.PublicAPI); err != nil {
 		return err
 	}
+	// store 编辑的脚本同样过模块说明符 DENYLIST，避免绕过导入包校验注入危险内置模块。
+	if err := validateInlineScriptModuleSpecifiers(record.ScriptText); err != nil {
+		return err
+	}
 	return s.validatePublicAPIUniqueness(record)
 }
 

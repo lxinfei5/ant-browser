@@ -13,6 +13,12 @@ import (
 )
 
 func (m *SingBoxManager) resolveBinary() (string, error) {
+	verify := func(p string) (string, error) {
+		if err := verifyRuntimeBinary(p, m.AppRoot); err != nil {
+			return "", err
+		}
+		return p, nil
+	}
 	configPath := strings.TrimSpace(m.Config.Browser.SingBoxBinaryPath)
 	if configPath != "" {
 		resolved := resolveEnvPath(configPath, m.AppRoot)
@@ -21,7 +27,7 @@ func (m *SingBoxManager) resolveBinary() (string, error) {
 				if err := fsutil.EnsureExecutable(resolved); err != nil {
 					return "", fmt.Errorf("sing-box 文件不可执行: %s: %w", resolved, err)
 				}
-				return resolved, nil
+				return verify(resolved)
 			}
 		}
 	}
@@ -30,7 +36,7 @@ func (m *SingBoxManager) resolveBinary() (string, error) {
 			if err := fsutil.EnsureExecutable(env); err != nil {
 				return "", fmt.Errorf("sing-box 文件不可执行: %s: %w", env, err)
 			}
-			return env, nil
+			return verify(env)
 		}
 	}
 
@@ -62,7 +68,7 @@ func (m *SingBoxManager) resolveBinary() (string, error) {
 				if err := fsutil.EnsureExecutable(candidate); err != nil {
 					return "", fmt.Errorf("sing-box 文件不可执行: %s: %w", candidate, err)
 				}
-				return candidate, nil
+				return verify(candidate)
 			}
 		}
 	}
@@ -72,7 +78,7 @@ func (m *SingBoxManager) resolveBinary() (string, error) {
 			if err := fsutil.EnsureExecutable(path); err != nil {
 				return "", fmt.Errorf("sing-box 文件不可执行: %s: %w", path, err)
 			}
-			return path, nil
+			return verify(path)
 		}
 	}
 
@@ -128,7 +134,7 @@ func (m *SingBoxManager) buildConfig(key string, outbound map[string]interface{}
 	}
 
 	cfgPath := filepath.Join(baseDir, "singbox-config.json")
-	if err := os.WriteFile(cfgPath, data, 0644); err != nil {
+	if err := os.WriteFile(cfgPath, data, 0o600); err != nil {
 		return "", err
 	}
 	return cfgPath, nil

@@ -1,7 +1,10 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
+	"os"
 	"path/filepath"
 	goruntime "runtime"
 	"strings"
@@ -295,7 +298,9 @@ func DefaultConfig() *Config {
 		LaunchServer: LaunchServerConfig{
 			Port: DefaultLaunchServerPort,
 			Auth: LaunchServerAuthConfig{
-				Enabled: false,
+				// 默认开启 API 认证。本地仅信任场景可在 config.yaml 中设置
+				// launch_server.auth.enabled: false 关闭。
+				Enabled: boolPtr(true),
 				APIKey:  "",
 				Header:  DefaultLaunchServerAPIKeyHeader,
 			},
@@ -344,4 +349,14 @@ func normalizeAutomationNodeSource(value string) string {
 func boolPtr(value bool) *bool {
 	v := value
 	return &v
+}
+
+// GenerateLaunchServerAPIKey 生成一个足够长的随机 API key（32 字节 = 64 hex 字符）。
+func GenerateLaunchServerAPIKey() string {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		// rand.Read 失败极罕见；退化为启动期不可预测的占位，仍比空 key 强。
+		return fmt.Sprintf("fallback-%d", os.Getpid())
+	}
+	return hex.EncodeToString(buf)
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -43,6 +44,28 @@ func (c *Config) Save(configPath string) error {
 	}
 
 	return nil
+}
+
+// EnsureLaunchServerAuthKey 在 API 认证默认开启且尚未配置 key 时，生成随机 key 并持久化到配置文件。
+// 返回 (changed, error)：changed=true 表示本次新生成并写入了 key。仅在真正落盘时修改文件，避免无谓写入。
+func EnsureLaunchServerAuthKey(cfg *Config, configPath string) (bool, error) {
+	if cfg == nil {
+		return false, nil
+	}
+	if !cfg.LaunchServer.Auth.IsEnabled() {
+		return false, nil
+	}
+	if strings.TrimSpace(cfg.LaunchServer.Auth.APIKey) != "" {
+		return false, nil
+	}
+	cfg.LaunchServer.Auth.APIKey = GenerateLaunchServerAPIKey()
+	if configPath == "" {
+		return true, nil
+	}
+	if err := cfg.Save(configPath); err != nil {
+		return false, fmt.Errorf("持久化自动生成的 API key 失败: %w", err)
+	}
+	return true, nil
 }
 
 // ProxyStore 代理数据文件结构

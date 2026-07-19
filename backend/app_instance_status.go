@@ -18,15 +18,17 @@ func (a *App) BrowserInstanceStatus(profileId string) (*BrowserProfile, error) {
 	}
 	a.ensureProfileLaunchCode(profile)
 	if !profile.Running {
-		userDataDir := a.browserMgr.ResolveUserDataDir(profile)
-		if detection, ok := detectBrowserRuntimeByUserDataDir(userDataDir); ok && detection.DebugReady {
-			a.markProfileRunningLocked(profileId, profile, nil, detection.PID, detection.DebugPort, true, "")
-			logger.New("Browser").Warn("状态查询发现同一用户数据目录浏览器已运行，已同步实例状态",
-				logger.F("profile_id", profileId),
-				logger.F("user_data_dir", userDataDir),
-				logger.F("pid", detection.PID),
-				logger.F("debug_port", detection.DebugPort),
-			)
+		userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+		if dirErr == nil {
+			if detection, ok := detectBrowserRuntimeByUserDataDir(userDataDir); ok && detection.DebugReady {
+				a.markProfileRunningLocked(profileId, profile, nil, detection.PID, detection.DebugPort, true, "")
+				logger.New("Browser").Warn("状态查询发现同一用户数据目录浏览器已运行，已同步实例状态",
+					logger.F("profile_id", profileId),
+					logger.F("user_data_dir", userDataDir),
+					logger.F("pid", detection.PID),
+					logger.F("debug_port", detection.DebugPort),
+				)
+			}
 		}
 	}
 	return profile, nil
@@ -49,7 +51,11 @@ func (a *App) BrowserInstanceOpenUrl(profileId string, targetUrl string) (bool, 
 	a.ensureProfileLaunchCode(profile)
 	trackedCmd := a.browserMgr.BrowserProcesses[profileId]
 	if !profile.Running {
-		userDataDir := a.browserMgr.ResolveUserDataDir(profile)
+		userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+		if dirErr != nil {
+			a.browserMgr.Mutex.Unlock()
+			return false, fmt.Errorf("打开地址失败：用户数据目录无效：%w", dirErr)
+		}
 		if detection, ok := detectBrowserRuntimeByUserDataDir(userDataDir); ok && detection.DebugReady {
 			a.markProfileRunningLocked(profileId, profile, nil, detection.PID, detection.DebugPort, true, "")
 			log.Warn("打开地址前发现同一用户数据目录浏览器已运行，已同步实例状态",

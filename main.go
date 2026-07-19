@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	goruntime "runtime"
@@ -44,6 +45,22 @@ type wailsBuildConfig struct {
 	Info struct {
 		ProductVersion string `json:"productVersion"`
 	} `json:"info"`
+}
+
+// cspAssetMiddleware 为前端资源注入严格 Content-Security-Policy，限制资源来源为同源，
+// 禁止内联/远程脚本，降低前端 XSS 触达 Wails bindings 的风险。
+var cspAssetMiddleware assetserver.Middleware = func(next http.Handler) http.Handler {
+	const csp = "default-src 'self'; " +
+		"script-src 'self'; " +
+		"style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data: blob:; " +
+		"font-src 'self' data:; " +
+		"connect-src 'self' ws: wails: ipc:; " +
+		"object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Security-Policy", csp)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func envFlagEnabled(name string) bool {
@@ -255,6 +272,9 @@ func main() {
 		MinHeight: windowBounds.MinHeight,
 		AssetServer: &assetserver.Options{
 			Assets: assets,
+			// 注入严格 Content-Security-Policy：默认只允许同源资源，禁止内联脚本/远程脚本，
+			// 降低前端 XSS 触达 Wails bindings 的风险。'wails:' 协议与 wails runtime 所需的 ws 连接按需放行。
+			Middleware: cspAssetMiddleware,
 		},
 		BackgroundColour: &options.RGBA{R: 245, G: 247, B: 250, A: 255},
 		OnStartup: func(ctx context.Context) {

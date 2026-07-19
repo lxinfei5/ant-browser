@@ -73,13 +73,54 @@ func (s *LaunchServer) apiAuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		cfg := s.apiAuthConfig()
-		if !cfg.Active() {
+		stateChanging := isStateChangingMethod(r.Method)
+
+		// 状态变更请求统一要求 Content-Type: application/json（有 body 时），阻断表单类 CSRF。
+		if stateChanging && hasBody(r) && !isJSONContentType(r) {
+			writeJSON(w, http.StatusUnsupportedMediaType, map[string]interface{}{
+				"ok":         false,
+				"error":      "unsupported media type: require application/json",
+				"authHeader": cfg.Header,
+			})
+			return
+		}
+
+		keyValid := false
+		if cfg.Requested() && cfg.Configured() {
+			providedKey := strings.TrimSpace(r.Header.Get(cfg.Header))
+			keyValid = subtle.ConstantTimeCompare([]byte(providedKey), []byte(cfg.APIKey)) == 1
+		}
+		if keyValid {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		providedKey := strings.TrimSpace(r.Header.Get(cfg.Header))
-		if subtle.ConstantTimeCompare([]byte(providedKey), []byte(cfg.APIKey)) != 1 {
+		// 认证开启但 key 为空：FAIL CLOSED，拒绝所有 /api/* 请求，避免静默放行。
+		if cfg.Requested() && !cfg.Configured() {
+			writeJSON(w, http.StatusUnauthorized, map[string]interface{}{
+				"ok":         false,
+				"error":      "unauthorized: api auth enabled but no key configured",
+				"authHeader": cfg.Header,
+			})
+			return
+		}
+
+		// 状态变更请求（无有效 key）：要求 same-origin，拒绝 cross-site / no-site，作为 CSRF 防护。
+		if stateChanging {
+			if isSameOriginFetch(r) {
+				next.ServeHTTP(w, r)
+				return
+			}
+			writeJSON(w, http.StatusForbidden, map[string]interface{}{
+				"ok":         false,
+				"error":      "forbidden: cross-site state-changing request rejected (require api key or same-origin)",
+				"authHeader": cfg.Header,
+			})
+			return
+		}
+
+		// 非状态变更（GET 等）：auth 开启但 key 不匹配 -> 401；auth 未开启（opt-out）-> 放行。
+		if cfg.Requested() {
 			writeJSON(w, http.StatusUnauthorized, map[string]interface{}{
 				"ok":         false,
 				"error":      "unauthorized: invalid api key",

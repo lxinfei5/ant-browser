@@ -189,7 +189,10 @@ func (a *App) writeProfilePackage(zipPath string, profiles []browser.Profile) (i
 		fileCount++
 		for i := range profiles {
 			profile := &profiles[i]
-			userDataDir := a.browserMgr.ResolveUserDataDir(profile)
+			userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+			if dirErr != nil {
+				return fmt.Errorf("用户数据目录无效 [%s]: %w", profile.ProfileName, dirErr)
+			}
 			if _, err := os.Stat(userDataDir); err != nil {
 				if os.IsNotExist(err) {
 					continue
@@ -298,7 +301,10 @@ func (a *App) importProfilePackageFromPath(zipPath string) (ProfilePackageImport
 		}
 
 		profile := &browser.Profile{ProfileId: newID, UserDataDir: newID}
-		finalDir := a.browserMgr.ResolveUserDataDir(profile)
+		finalDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+		if dirErr != nil {
+			return ProfilePackageImportResult{}, fmt.Errorf("用户数据目录无效：%w", dirErr)
+		}
 		stagingDir := filepath.Join(stagingRoot, newID)
 		hasUserData, err := a.extractProfileUserDataToDir(reader.File, oldID, stagingDir)
 		if err != nil {

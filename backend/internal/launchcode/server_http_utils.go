@@ -27,6 +27,16 @@ func (s *LaunchServer) localhostMiddleware(next http.Handler) http.Handler {
 
 // handleCDPProxy 将统一端口上的非 /api 请求转发到当前活动实例的 CDP 端口。
 func (s *LaunchServer) handleCDPProxy(w http.ResponseWriter, r *http.Request) {
+	// Origin/来源白名单：拒绝跨源浏览器请求（防 DNS-rebinding / 浏览器驻留 drive-by），
+	// 允许无 Origin 的本地非浏览器 CDP 客户端，以及本机来源。
+	if !isAllowedCDPOrigin(r) {
+		writeJSON(w, http.StatusForbidden, map[string]interface{}{
+			"ok":    false,
+			"error": "forbidden: cross-origin CDP access rejected",
+		})
+		return
+	}
+
 	debugPort, profileID, profileName := s.activeTarget()
 	if debugPort <= 0 {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]interface{}{

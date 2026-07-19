@@ -213,16 +213,13 @@ func (a *App) extensionDownloadHTTPClient(useProxy bool, proxyConfig string) (*h
 	if a != nil && a.config != nil {
 		connectorType = a.config.Browser.DefaultConnectorType
 	}
-	log.Info("Chrome 插件下载使用代理", logger.F("connector", connectorType), logger.F("proxy_prefix", proxyConfigLogPrefix(proxyConfig)))
+	log.Info("Chrome 插件下载使用代理", logger.F("connector", connectorType), logger.F("proxy_config", proxy.RedactProxyConfig(proxyConfig)))
 	return proxy.BuildProxyHTTPClient(proxyConfig, "", proxies, a.xrayMgr, a.singboxMgr, a.clashMgr, connectorType, browser.ExtensionDownloadTimeout())
 }
 
+// proxyConfigLogPrefix 保留为兼容入口，内部改为真正的 userinfo 脱敏（不再仅截断前缀）。
 func proxyConfigLogPrefix(proxyConfig string) string {
-	proxyConfig = strings.TrimSpace(proxyConfig)
-	if len(proxyConfig) <= 24 {
-		return proxyConfig
-	}
-	return proxyConfig[:24]
+	return proxy.RedactProxyConfig(proxyConfig)
 }
 
 func (a *App) BrowserExtensionInstallLocalFile() (BrowserExtension, error) {

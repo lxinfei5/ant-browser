@@ -12,7 +12,9 @@ import (
 	"ant-chrome/backend/internal/config"
 )
 
-const DefaultIPHealthURL = "https://my.ippure.com/v1/info"
+// DefaultIPHealthURL 默认留空（= 关闭）。不再内置厂商 phone-home 地址；
+// 需要出口 IP 健康检测时，请在 config.yaml 的 proxy_check.targets 中显式配置 type=ip_health 的目标。
+const DefaultIPHealthURL = ""
 
 type IPHealthConfig struct {
 	URL     string
@@ -60,8 +62,9 @@ func FetchIPHealthInfo(
 		"_parser":    parser,
 	}
 	if targetURL == "" {
-		meta["error"] = "IP 健康检测目标 URL 为空"
-		return meta, fmt.Errorf("IP 健康检测目标 URL 为空")
+		// 默认关闭：未配置检测目标时不发起任何外网请求，避免厂商 phone-home。
+		meta["error"] = "IP 健康检测未配置（默认关闭，请在 proxy_check.targets 配置 ip_health 目标）"
+		return meta, fmt.Errorf("IP 健康检测未配置（默认关闭）")
 	}
 
 	src := resolveProxyConfig("", proxies, proxyId)
@@ -82,7 +85,7 @@ func FetchIPHealthInfo(
 		return meta, fmt.Errorf("创建 IP 健康检测请求失败（source=%s）: %w", source, err)
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "AntChrome/1.0")
+	req.Header.Set("User-Agent", "ip-health-check")
 
 	resp, err := client.Do(req)
 	if err != nil {

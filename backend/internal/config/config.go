@@ -22,9 +22,19 @@ type LaunchServerConfig struct {
 }
 
 type LaunchServerAuthConfig struct {
-	Enabled bool   `yaml:"enabled"`
+	// Enabled 使用指针类型以区分“未配置”（默认开启）与“显式关闭”。
+	// 未在 config.yaml 中设置时默认开启；用户可显式设置 enabled: false 关闭（仅本地信任场景）。
+	Enabled *bool  `yaml:"enabled,omitempty"`
 	APIKey  string `yaml:"api_key"`
 	Header  string `yaml:"header"`
+}
+
+// IsEnabled 返回是否开启 API 认证；未配置时按默认开启处理。
+func (c LaunchServerAuthConfig) IsEnabled() bool {
+	if c.Enabled == nil {
+		return true
+	}
+	return *c.Enabled
 }
 
 type AutomationConfig struct {

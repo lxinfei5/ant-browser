@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"ant-chrome/backend/internal/automation"
+	"ant-chrome/backend/internal/logger"
 
 	wailsruntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -98,6 +99,22 @@ func (a *App) AutomationScriptImportLocalLibrary() (*AutomationScriptBatchImport
 }
 
 func (a *App) AutomationScriptImportRemote(rawURL string) (*automation.ScriptRecord, error) {
+	return a.AutomationScriptImportRemoteConfirm(rawURL, false)
+}
+
+// AutomationScriptImportRemoteConfirm 远程脚本导入，默认禁用；需显式 confirm=true 才允许，
+// 且必须携带当前 LaunchServer API key（默认开启），导入会记录告警日志。
+func (a *App) AutomationScriptImportRemoteConfirm(rawURL string, confirm bool) (*automation.ScriptRecord, error) {
+	log := logger.New("Automation")
+	if !confirm {
+		log.Warn("远程脚本导入被拒绝：未显式确认")
+		return nil, fmt.Errorf("远程脚本导入默认禁用，需显式确认（confirm=true）")
+	}
+	// 要求当前 API key 已配置（认证默认开启），降低匿名/CSRF 触发风险。
+	if a.config != nil && a.config.LaunchServer.Auth.IsEnabled() && strings.TrimSpace(a.config.LaunchServer.Auth.APIKey) == "" {
+		return nil, fmt.Errorf("远程脚本导入需要 LaunchServer API key 已配置")
+	}
+	log.Warn("远程脚本导入已获确认，开始拉取", logger.F("url", strings.TrimSpace(rawURL)))
 	bundle, err := a.loadAutomationRemoteBundle(strings.TrimSpace(rawURL))
 	if err != nil {
 		return nil, err
