@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"ant-chrome/backend/internal/launchcode"
+	"ant-chrome/backend/internal/netguard"
 )
 
 const automationScriptPublicAPIInvokeDefaultTimeout = 31 * time.Minute
@@ -85,7 +86,16 @@ func (a *App) AutomationScriptInvokePublicAPI(input AutomationScriptPublicAPIInv
 		req.Header.Set(authHeader, apiKey)
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	// SSRF 防护：默认使用拦截私有/内网地址的客户端；若目标是本机 LaunchServer（自调用）则允许回环。
+	httpClient := netguard.NewClient(timeout)
+	if isLocalLaunchServerTarget(a, requestURL) {
+		httpClient = http.DefaultClient
+		if httpClient.Timeout == 0 || httpClient.Timeout > timeout {
+			httpClient = &http.Client{Timeout: timeout}
+		}
+	}
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return nil, fmt.Errorf("invoke public api failed: %w", ctxErr)
@@ -189,4 +199,35 @@ func (a *App) resolveAutomationScriptInvokeAuth(targetURL *url.URL) (string, str
 	}
 
 	return a.launchServer.APIAuthHeader(), apiKey
+}
+
+// isLocalLaunchServerTarget 判断目标 URL 是否指向本机 LaunchServer（用于 SSRF 防护的回环放行）。
+func isLocalLaunchServerTarget(a *App, targetURL *url.URL) bool {
+	if a == nil || a.launchServer == nil || targetURL == nil {
+		return false
+	}
+	launchPort := a.launchServer.Port()
+	if launchPort <= 0 {
+		return false
+	}
+	requestPort := targetURL.Port()
+	if requestPort == "" {
+		switch strings.ToLower(targetURL.Scheme) {
+		case "https":
+			requestPort = "443"
+		default:
+			requestPort = "80"
+		}
+	}
+	if requestPort != strconv.Itoa(launchPort) {
+		return false
+	}
+	host := strings.TrimSpace(strings.ToLower(targetURL.Hostname()))
+	if host == "" {
+		return false
+	}
+	if parsedIP := net.ParseIP(host); parsedIP != nil {
+		return parsedIP.IsLoopback()
+	}
+	return host == "localhost"
 }

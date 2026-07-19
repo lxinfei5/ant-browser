@@ -122,7 +122,7 @@ func (a *App) resolveBrowserStartProfile(input browserStartInput) (*BrowserProfi
 
 func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserProfile) (*browserStartPlan, error) {
 	bookmarks := a.BookmarkList()
-	sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, chromeBinaryPath, userDataDir, err := a.prepareBrowserLaunchContext(input, profile, bookmarks)
+	sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, chromeBinaryPath, userDataDir, err := a.prepareBrowserLaunchContext(input, profile, bookmarks)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		chromeBinaryPath:     chromeBinaryPath,
 		userDataDir:          userDataDir,
 		extensionDirs:        extensionDirs,
-		args:                 buildBrowserLaunchArgs(profile, userDataDir, assignedDebugPort, effectiveProxy, extensionDirs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, launchTargets),
+		args:                 buildBrowserLaunchArgs(profile, userDataDir, assignedDebugPort, effectiveProxy, extensionDirs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, launchTargets),
 		deferredStartTargets: deferredStartTargets,
 		effectiveProxy:       effectiveProxy,
 		acquiredProxyBridge:  acquiredProxyBridge,
@@ -176,13 +176,16 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 	}, nil
 }
 
-func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *BrowserProfile, bookmarks []BrowserBookmark) ([]string, []string, string, string, error) {
+func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *BrowserProfile, bookmarks []BrowserBookmark) ([]string, []string, []string, string, string, error) {
 	log := logger.New("Browser")
 
 	sanitizedProfileLaunchArgs, managedProfileArgs := sanitizeManagedLaunchArgs(profile.LaunchArgs)
 	sanitizedExtraLaunchArgs, managedExtraArgs := sanitizeManagedLaunchArgs(input.ExtraLaunchArgs)
+	// 指纹参数同样过 DENYLIST，防止借 FingerprintArgs 注入 --remote-debugging-* / --proxy-server 等敏感开关。
+	sanitizedFingerprintArgs, managedFingerprintArgs := sanitizeManagedLaunchArgs(profile.FingerprintArgs)
 	logManagedLaunchArgOverrides(log, input.ProfileID, "profile.launchArgs", managedProfileArgs)
 	logManagedLaunchArgOverrides(log, input.ProfileID, "start.extraLaunchArgs", managedExtraArgs)
+	logManagedLaunchArgOverrides(log, input.ProfileID, "profile.fingerprintArgs", managedFingerprintArgs)
 
 	proxyChanged := a.browserMgr.ApplyDefaults(profile)
 	if proxyChanged {
@@ -198,10 +201,20 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 			logger.F("reason", startErr.Error()),
 		)
 		profile.LastError = startErr.Error()
-		return nil, nil, "", "", startErr
+		return nil, nil, nil, "", "", startErr
 	}
 
-	userDataDir := a.browserMgr.ResolveUserDataDir(profile)
+	userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+	if dirErr != nil {
+		startErr := fmt.Errorf("实例启动失败：用户数据目录无效。原因：%w。", dirErr)
+		log.Error("用户数据目录解析被拒绝",
+			logger.F("profile_id", input.ProfileID),
+			logger.F("error", dirErr.Error()),
+			logger.F("reason", startErr.Error()),
+		)
+		profile.LastError = startErr.Error()
+		return nil, nil, nil, "", "", startErr
+	}
 	if err := os.MkdirAll(userDataDir, 0o755); err != nil {
 		startErr := fmt.Errorf("实例启动失败：无法创建用户数据目录 %s。原因：%w。请检查目录权限或路径配置。", userDataDir, err)
 		log.Error("用户数据目录创建失败",
@@ -211,7 +224,7 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 			logger.F("reason", startErr.Error()),
 		)
 		profile.LastError = startErr.Error()
-		return nil, nil, "", "", startErr
+		return nil, nil, nil, "", "", startErr
 	}
 
 	if err := browser.EnsureDefaultBookmarks(userDataDir, bookmarks); err != nil {
@@ -227,14 +240,14 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 			logger.F("debug_port", detection.DebugPort),
 		)
 		if len(normalizeNonEmptyStrings(input.StartURLs)) == 0 && len(normalizeNonEmptyStrings(input.ExtraLaunchArgs)) == 0 {
-			return nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
+			return nil, nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
 		}
 		if err := a.openBrowserTabForRunningProfile(profile, input.ExtraLaunchArgs, input.StartURLs); err != nil {
 			startErr := fmt.Errorf("实例已在运行，但新标签打开失败：%w", err)
 			profile.LastError = startErr.Error()
-			return nil, nil, "", "", startErr
+			return nil, nil, nil, "", "", startErr
 		}
-		return nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
+		return nil, nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
 	}
 
 	if !browserRestoreLastSession(a.config) {
@@ -245,7 +258,7 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 					logger.F("user_data_dir", userDataDir),
 				)
 				if retryErr := clearBrowserSessionRestoreData(userDataDir); retryErr == nil {
-					return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, chromeBinaryPath, userDataDir, nil
+					return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, chromeBinaryPath, userDataDir, nil
 				} else {
 					err = retryErr
 				}
@@ -265,14 +278,14 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 				logger.F("reason", startErr.Error()),
 			)
 			profile.LastError = startErr.Error()
-			return nil, nil, "", "", startErr
+			return nil, nil, nil, "", "", startErr
 		}
 	}
 
-	return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, chromeBinaryPath, userDataDir, nil
+	return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, chromeBinaryPath, userDataDir, nil
 }
 
-func buildBrowserLaunchArgs(profile *BrowserProfile, userDataDir string, debugPort int, effectiveProxy string, extensionDirs []string, sanitizedProfileLaunchArgs []string, sanitizedExtraLaunchArgs []string, launchTargets []string) []string {
+func buildBrowserLaunchArgs(profile *BrowserProfile, userDataDir string, debugPort int, effectiveProxy string, extensionDirs []string, sanitizedProfileLaunchArgs []string, sanitizedExtraLaunchArgs []string, sanitizedFingerprintArgs []string, launchTargets []string) []string {
 	args := []string{
 		fmt.Sprintf("--user-data-dir=%s", userDataDir),
 		fmt.Sprintf("--remote-debugging-port=%d", debugPort),
@@ -308,8 +321,10 @@ func buildBrowserLaunchArgs(profile *BrowserProfile, userDataDir string, debugPo
 		args = append(args, fmt.Sprintf("--load-extension=%s", extensionArg))
 	}
 
-	args = append(args, profile.FingerprintArgs...)
+	args = append(args, sanitizedFingerprintArgs...)
 	args = append(args, sanitizedProfileLaunchArgs...)
 	args = append(args, sanitizedExtraLaunchArgs...)
-	return browser.BuildLaunchArgs(args, launchTargets)
+	// 拼接到 argv 前剔除以 -- 开头的可疑 StartURL（防止 flag 注入）；CDP light-start 路径不走此处。
+	safeLaunchTargets := sanitizeStartURLsForArgv(launchTargets)
+	return browser.BuildLaunchArgs(args, safeLaunchTargets)
 }

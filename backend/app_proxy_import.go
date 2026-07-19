@@ -2,6 +2,7 @@ package backend
 
 import (
 	"ant-chrome/backend/internal/config"
+	"ant-chrome/backend/internal/netguard"
 	"ant-chrome/backend/internal/proxy"
 	"encoding/base64"
 	"fmt"
@@ -53,7 +54,8 @@ func (a *App) browserProxyFetchClashByURL(rawURL string, proxyID string) (map[st
 		return nil, fmt.Errorf("仅支持 http/https URL")
 	}
 
-	client := &http.Client{Timeout: clashSubscriptionTimeout}
+	// SSRF 防护：直连拉取订阅时拦截私有/内网/云元数据地址（经代理拉取不在此处拦截，由代理转发）。
+	client := netguard.NewClient(clashSubscriptionTimeout)
 	if proxyID != "" {
 		proxyClient, err := a.clashSubscriptionProxyClient(proxyID)
 		if err != nil {

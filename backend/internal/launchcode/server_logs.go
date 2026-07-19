@@ -5,9 +5,12 @@ import (
 	"time"
 
 	"ant-chrome/backend/internal/logger"
+	"ant-chrome/backend/internal/proxy"
 )
 
 func (s *LaunchServer) appendLaunchLog(method, path, clientIP, code string, selector LaunchSelector, params LaunchRequestParams, ok bool, status int, errMsg, profileID, profileName string, startAt time.Time) {
+	// 落盘到内存调用记录前脱敏 ProxyConfig 中的 userinfo，避免 /api/launch/logs 泄露凭据。
+	params.ProxyConfig = proxy.RedactProxyConfig(params.ProxyConfig)
 	entry := LaunchCallRecord{
 		Timestamp:   time.Now().Format(time.RFC3339),
 		Method:      method,

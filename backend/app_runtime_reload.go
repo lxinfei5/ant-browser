@@ -36,7 +36,7 @@ func (a *App) ReloadConfig() error {
 	}
 	if a.launchServer != nil {
 		a.launchServer.SetAPIAuthConfig(launchcode.APIAuthConfig{
-			Enabled: cfg.LaunchServer.Auth.Enabled,
+			Enabled: cfg.LaunchServer.Auth.IsEnabled(),
 			APIKey:  cfg.LaunchServer.Auth.APIKey,
 			Header:  cfg.LaunchServer.Auth.Header,
 		})

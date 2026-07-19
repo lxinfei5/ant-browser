@@ -10,14 +10,21 @@ type managedLaunchArgSpec struct {
 	takesValue bool
 }
 
+// managedLaunchArgSpecs 既是系统接管参数，也是安全敏感参数的 DENYLIST：
+// 无论来源（profile.LaunchArgs / 一次性 ExtraLaunchArgs / FingerprintArgs）都会被剥离。
+// 合法的指纹参数（--fingerprint* / --fingerprint-brand / --fingerprint-platform）不在列表中，予以保留。
 var managedLaunchArgSpecs = []managedLaunchArgSpec{
 	{prefix: "--user-data-dir", takesValue: true},
 	{prefix: "--remote-debugging-port", takesValue: true},
 	{prefix: "--remote-debugging-address", takesValue: true},
 	{prefix: "--remote-debugging-pipe", takesValue: false},
 	{prefix: "--proxy-server", takesValue: true},
+	{prefix: "--proxy-pac-url", takesValue: true},
 	{prefix: "--load-extension", takesValue: true},
 	{prefix: "--disable-extensions-except", takesValue: true},
+	{prefix: "--ignore-certificate-errors", takesValue: false},
+	{prefix: "--disable-web-security", takesValue: false},
+	{prefix: "--ignore-urlfetcher-cert-requests", takesValue: false},
 }
 
 func sanitizeManagedLaunchArgs(args []string) ([]string, []string) {
@@ -53,8 +60,11 @@ func sanitizeManagedLaunchArgs(args []string) ([]string, []string) {
 }
 
 func matchManagedLaunchArg(arg string) (managedLaunchArgSpec, bool) {
+	// 归一化前导连字符：Chromium 接受 -foo / --foo 两种长 flag 形式，否则用单连字符即可绕过 denylist。
+	normalizedArg := strings.TrimLeft(strings.ToLower(arg), "-")
 	for _, spec := range managedLaunchArgSpecs {
-		if strings.EqualFold(arg, spec.prefix) || strings.HasPrefix(strings.ToLower(arg), strings.ToLower(spec.prefix)+"=") {
+		normalizedPrefix := strings.TrimLeft(strings.ToLower(spec.prefix), "-")
+		if normalizedArg == normalizedPrefix || strings.HasPrefix(normalizedArg, normalizedPrefix+"=") {
 			return spec, true
 		}
 	}

@@ -145,6 +145,10 @@ func isAllowedRuntimeModule(specifier string) bool {
 	if index := strings.Index(root, "/"); index >= 0 {
 		root = root[:index]
 	}
+	// 危险内置模块 DENYLIST：无论是否为 Node 内置模块，一律拒绝（child_process/fs/os/net/vm 等）。
+	if _, denied := deniedNodeBuiltinModules[root]; denied {
+		return false
+	}
 	_, exists := nodeBuiltinModules[root]
 	return exists
 }
@@ -158,4 +162,24 @@ func looksLikeWindowsAbsolutePath(value string) bool {
 		return false
 	}
 	return value[1] == ':' && (value[2] == '\\' || value[2] == '/')
+}
+
+// validateInlineScriptModuleSpecifiers 校验内联（store 编辑）脚本的模块说明符，与导入包走同一套 DENYLIST。
+// 内联脚本无文件索引，仅校验非相对路径的模块（Node 内置/外部），重点拦截 child_process/fs/os/net/vm 等危险模块。
+func validateInlineScriptModuleSpecifiers(scriptText string) error {
+	for _, specifier := range extractImportedModuleSpecifiers(scriptText) {
+		normalized := strings.TrimSpace(specifier)
+		if normalized == "" {
+			continue
+		}
+		if strings.HasPrefix(normalized, "./") || strings.HasPrefix(normalized, "../") ||
+			strings.HasPrefix(normalized, "/") || looksLikeWindowsAbsolutePath(normalized) {
+			// 内联脚本无文件索引，跳过相对路径解析（不构成跨文件逃逸）。
+			continue
+		}
+		if !isAllowedRuntimeModule(normalized) {
+			return fmt.Errorf("发现不受支持的外部依赖 %q，只允许相对路径、Node 内置模块、playwright、playwright-core", normalized)
+		}
+	}
+	return nil
 }

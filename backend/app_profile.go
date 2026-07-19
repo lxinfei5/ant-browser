@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"ant-chrome/backend/internal/logger"
+	"ant-chrome/backend/internal/netguard"
 )
 
 const maxRemoteProfileConfigBytes = 512 * 1024
@@ -48,9 +49,10 @@ func (a *App) FetchRemoteAuthorProfile(rawURL string, timeoutMs int) (map[string
 		return nil, fmt.Errorf("创建远程作者配置请求失败: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "AntBrowser/1.0 profile-fetch")
+	req.Header.Set("User-Agent", "profile-fetch")
 
-	client := &http.Client{}
+	// SSRF 防护：拦截指向私有/内网/云元数据地址的拉取。
+	client := netguard.NewClient(timeout)
 	resp, err := client.Do(req)
 	if err != nil {
 		log := logger.New("ProfileConfig")

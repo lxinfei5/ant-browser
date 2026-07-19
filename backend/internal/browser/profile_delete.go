@@ -181,8 +181,13 @@ func (m *Manager) deleteProfileRelatedDataLocked(log *logger.Logger, profile *Pr
 			}
 		}
 	}
-	userDataDir := m.ResolveUserDataDir(profile)
-	if err := m.deleteProfileUserDataDir(userDataDir); err != nil {
+	userDataDir, dirErr := m.ResolveUserDataDir(profile)
+	if dirErr != nil {
+		log.Error("删除实例数据目录失败：用户数据目录无效", logger.F("profile_id", profile.ProfileId), logger.F("error", dirErr))
+		if firstErr == nil {
+			firstErr = dirErr
+		}
+	} else if err := m.deleteProfileUserDataDir(userDataDir); err != nil {
 		log.Error("删除实例数据目录失败", logger.F("profile_id", profile.ProfileId), logger.F("dir", userDataDir), logger.F("error", err))
 		if firstErr == nil {
 			firstErr = err

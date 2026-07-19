@@ -61,9 +61,14 @@ func (a *App) startup(ctx context.Context) {
 }
 
 func (a *App) startupLoadConfig() *config.Config {
-	cfg, err := LoadConfig(a.resolveAppPath("config.yaml"))
+	configPath := a.resolveAppPath("config.yaml")
+	cfg, err := LoadConfig(configPath)
 	if err != nil {
 		return config.DefaultConfig()
+	}
+	// 默认开启 API 认证：首次运行且未配置 key 时自动生成并持久化，避免每次启动轮换 key。
+	if _, ensureErr := config.EnsureLaunchServerAuthKey(cfg, configPath); ensureErr != nil {
+		logger.New("App").Error("自动生成 LaunchServer API key 失败", logger.F("error", ensureErr))
 	}
 	return cfg
 }
@@ -158,7 +163,7 @@ func (a *App) startupInitLaunchServer(log *logger.Logger) {
 	port := a.config.LaunchServer.Port
 	a.launchServer = launchcode.NewLaunchServer(a.launchCodeSvc, a, a.browserMgr, port)
 	a.launchServer.SetAPIAuthConfig(launchcode.APIAuthConfig{
-		Enabled: a.config.LaunchServer.Auth.Enabled,
+		Enabled: a.config.LaunchServer.Auth.IsEnabled(),
 		APIKey:  a.config.LaunchServer.Auth.APIKey,
 		Header:  a.config.LaunchServer.Auth.Header,
 	})

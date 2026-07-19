@@ -194,11 +194,13 @@ func normalizeProxyCoreTarget(goos string, goarch string) (proxyCoreTarget, erro
 func normalizeProxyCoreSpec(core string) (proxyCoreSpec, error) {
 	switch strings.ToLower(strings.TrimSpace(core)) {
 	case "", "xray":
-		return proxyCoreSpec{Core: "xray", Repo: "XTLS/Xray-core", DisplayName: "Xray", BinaryBase: "xray", ConfigKey: "xray", Version: "v26.3.27"}, nil
+		// 默认版本与 publish/runtime-manifest.json 固定版本一致：xray v26.2.6。
+		return proxyCoreSpec{Core: "xray", Repo: "XTLS/Xray-core", DisplayName: "Xray", BinaryBase: "xray", ConfigKey: "xray", Version: "v26.2.6"}, nil
 	case "mihomo", "clash", "clash-meta":
-		return proxyCoreSpec{Core: "mihomo", Repo: "MetaCubeX/mihomo", DisplayName: "Mihomo", BinaryBase: "mihomo", ConfigKey: "clash", Version: "v1.19.27"}, nil
+		return proxyCoreSpec{Core: "mihomo", Repo: "MetaCubeX/mihomo", DisplayName: "Mihomo", BinaryBase: "mihomo", ConfigKey: "clash", Version: "v1.19.29"}, nil
 	case "sing-box", "singbox":
-		return proxyCoreSpec{Core: "sing-box", Repo: "SagerNet/sing-box", DisplayName: "sing-box", BinaryBase: "sing-box", ConfigKey: "sing-box", Version: "v1.13.13"}, nil
+		// 默认版本与 publish/runtime-manifest.json 固定版本一致：sing-box v1.12.17。
+		return proxyCoreSpec{Core: "sing-box", Repo: "SagerNet/sing-box", DisplayName: "sing-box", BinaryBase: "sing-box", ConfigKey: "sing-box", Version: "v1.12.17"}, nil
 	default:
 		return proxyCoreSpec{}, fmt.Errorf("不支持的代理内核: %s", core)
 	}
@@ -226,6 +228,10 @@ func (a *App) downloadProxyCore(ctx context.Context, spec proxyCoreSpec, target 
 		send("error", 0, err.Error())
 		return
 	}
+	if err := validateProxyCoreAssetURL(asset.BrowserDownloadURL); err != nil {
+		send("error", 0, "下载地址校验失败: "+err.Error())
+		return
+	}
 
 	platformDir := fmt.Sprintf("%s-%s", target.GOOS, target.GOARCH)
 	installDir := proxyCoreInstallDir(a, spec, target)
@@ -249,6 +255,43 @@ func (a *App) downloadProxyCore(ctx context.Context, spec proxyCoreSpec, target 
 		return
 	}
 	_ = tmp.Close()
+
+	// 解压前校验归档完整性。优先级：
+	//   1) GitHub API 返回的资产 digest（sha256，适用任意版本/内核）；
+	//   2) runtime-sources.json 固定的 archiveSha256（仅固定版本）；
+	//   3) 同 release 的官方校验文件（.dgst/.sha256 等）；
+	//   4) 以上均不可得 -> 标记为未验证并放行。
+	verified := false
+	if sum := assetDigestSha256(asset.Digest); sum != "" {
+		if err := verifyProxyCoreArchiveByHash(tmpPath, sum); err != nil {
+			send("error", 0, "归档校验失败（GitHub digest）: "+err.Error())
+			return
+		}
+		log.Info("归档 sha256 校验通过（GitHub digest）", logger.F("url", asset.BrowserDownloadURL), logger.F("sha256", sum))
+		verified = true
+	}
+	if !verified {
+		if err := verifyProxyCoreArchive(a.appRoot, tmpPath, asset.BrowserDownloadURL); err != nil {
+			send("error", 0, "归档校验失败: "+err.Error())
+			return
+		}
+		if pinned := pinnedArchiveSha256(a.appRoot, asset.BrowserDownloadURL); pinned != "" {
+			verified = true
+		}
+	}
+	if !verified {
+		if sum := fetchProxyCoreOfficialChecksum(ctx, client, spec, release, asset.Name, 60*time.Second); sum != "" {
+			if err := verifyProxyCoreArchiveByHash(tmpPath, sum); err != nil {
+				send("error", 0, "归档校验失败（官方校验文件）: "+err.Error())
+				return
+			}
+			log.Info("归档 sha256 校验通过（官方校验文件）", logger.F("url", asset.BrowserDownloadURL), logger.F("sha256", sum))
+			verified = true
+		}
+	}
+	if !verified {
+		log.Warn("归档无可用校验来源，标记为未验证", logger.F("url", asset.BrowserDownloadURL))
+	}
 
 	extractDir, err := os.MkdirTemp(installDir, "extract-*")
 	if err != nil {

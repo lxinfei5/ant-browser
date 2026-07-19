@@ -34,7 +34,10 @@ func (a *App) BrowserSnapshotCreate(profileId, name string) (SnapshotInfo, error
 		return SnapshotInfo{}, fmt.Errorf("请先停止实例再创建快照")
 	}
 
-	userDataDir := a.browserMgr.ResolveUserDataDir(profile)
+	userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+	if dirErr != nil {
+		return SnapshotInfo{}, fmt.Errorf("用户数据目录无效：%w", dirErr)
+	}
 	if _, err := os.Stat(userDataDir); os.IsNotExist(err) {
 		return SnapshotInfo{}, fmt.Errorf("用户数据目录不存在，无法创建快照")
 	}
@@ -136,7 +139,10 @@ func (a *App) BrowserSnapshotRestore(profileId, snapshotId string) error {
 	}
 	_ = metaPath
 
-	userDataDir := a.browserMgr.ResolveUserDataDir(profile)
+	userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+	if dirErr != nil {
+		return fmt.Errorf("用户数据目录无效：%w", dirErr)
+	}
 	if err := os.RemoveAll(userDataDir); err != nil {
 		return fmt.Errorf("清空用户数据目录失败: %w", err)
 	}

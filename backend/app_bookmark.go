@@ -135,7 +135,17 @@ func (a *App) BookmarkSyncToProfiles() BookmarkSyncResult {
 			continue
 		}
 
-		userDataDir := a.browserMgr.ResolveUserDataDir(profile)
+		userDataDir, dirErr := a.browserMgr.ResolveUserDataDir(profile)
+		if dirErr != nil {
+			result.Failed++
+			name := profile.ProfileName
+			if name == "" {
+				name = profile.ProfileId
+			}
+			result.FailedList = append(result.FailedList, name)
+			log.Error("同步默认书签到实例失败：用户数据目录无效", logger.F("profile_id", profile.ProfileId), logger.F("error", dirErr.Error()))
+			continue
+		}
 		if err := browser.EnsureDefaultBookmarks(userDataDir, bookmarks); err != nil {
 			result.Failed++
 			name := profile.ProfileName
