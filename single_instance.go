@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const singleInstanceLockFile = "app-instance.lock"
+const singleInstanceLockFile = "profilepool.lock"
 
 type singleInstanceLockInfo struct {
 	PID  int    `json:"pid"`

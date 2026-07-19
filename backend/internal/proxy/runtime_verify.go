@@ -38,7 +38,7 @@ var (
 )
 
 // runtimeBypassEnv 为开发/自建二进制提供显式跳过校验的逃生阀。
-const runtimeBypassEnv = "ANTCHROME_ALLOW_UNVERIFIED_RUNTIME"
+const runtimeBypassEnv = "PROFILEPOOL_ALLOW_UNVERIFIED_RUNTIME"
 
 // runtimeManifestCandidates 返回可能存在的 runtime-manifest.json 路径（按优先级）。
 func runtimeManifestCandidates(appRoot string) []string {
@@ -123,7 +123,7 @@ func cachedFileSha256(path string) (string, error) {
 //   - 命中条目且匹配 -> 通过。
 //   - 未随构建发布清单（找不到 manifest）-> 记录警告并放行，标记为未验证（避免砖掉未附带 manifest 的安装）。
 //   - 清单存在但该路径无条目 -> 记录警告并放行，标记为未验证（兼容 windows 下载路径/mihomo 等），可通过设置 runtimeBypassEnv 完全跳过。
-//   - 设置环境变量 ANTCHROME_ALLOW_UNVERIFIED_RUNTIME=1 -> 完全跳过（开发/自建二进制）。
+//   - 设置环境变量 PROFILEPOOL_ALLOW_UNVERIFIED_RUNTIME=1 -> 完全跳过（开发/自建二进制）。
 func verifyRuntimeBinary(binaryPath, appRoot string) error {
 	if strings.TrimSpace(os.Getenv(runtimeBypassEnv)) != "" {
 		return nil

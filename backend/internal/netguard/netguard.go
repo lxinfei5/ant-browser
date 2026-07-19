@@ -11,7 +11,7 @@ import (
 )
 
 // BypassEnv 为显式跳过 SSRF 防护的逃生阀（开发/调试用）。
-const BypassEnv = "ANTCHROME_ALLOW_PRIVATE_FETCH"
+const BypassEnv = "PROFILEPOOL_ALLOW_PRIVATE_FETCH"
 
 // IsBlockedIP 判断 ip 是否属于被拦截的地址段：
 //   - 回环 127.0.0.0/8 与 ::1
@@ -40,7 +40,7 @@ func IsBlockedIP(ip net.IP) bool {
 	return false
 }
 
-// AllowedBypass 返回是否设置了显式 SSRF 旁路（环境变量 ANTCHROME_ALLOW_PRIVATE_FETCH）。
+// AllowedBypass 返回是否设置了显式 SSRF 旁路（环境变量 PROFILEPOOL_ALLOW_PRIVATE_FETCH）。
 func AllowedBypass() bool {
 	return os.Getenv(BypassEnv) != ""
 }

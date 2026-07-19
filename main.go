@@ -163,7 +163,7 @@ func main() {
 		}
 	}
 
-	startupDebugEnabled := envFlagEnabled("ANT_BROWSER_DEBUG_STARTUP")
+	startupDebugEnabled := envFlagEnabled("PROFILEPOOL_DEBUG_STARTUP")
 	if startupDebugEnabled {
 		log.Printf("应用根目录: %s (dev=%v)", appRoot, isDevMode)
 	}

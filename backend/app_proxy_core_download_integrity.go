@@ -195,7 +195,7 @@ func fetchProxyCoreBytes(ctx context.Context, client *http.Client, rawURL string
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "ant-chrome-proxy-core-downloader")
+	req.Header.Set("User-Agent", "profilepool-proxy-core-downloader")
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err

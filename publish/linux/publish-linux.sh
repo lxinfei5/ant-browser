@@ -130,24 +130,24 @@ RUNTIME_DIR="$ROOT_DIR/bin/$TARGET"
 XRAY_SRC="$RUNTIME_DIR/xray"
 SINGBOX_SRC="$RUNTIME_DIR/sing-box"
 APP_ICON_SRC="$ROOT_DIR/build/appicon.png"
-APP_BIN="$ROOT_DIR/build/bin/ant-chrome"
+APP_BIN="$ROOT_DIR/build/bin/profilepool"
 WAILS_CONFIG="$ROOT_DIR/wails.json"
 CHROME_README_SRC="$ROOT_DIR/chrome/README.md"
-APP_PACKAGE_NAME="ant-browser"
-APP_BINARY_NAME="ant-chrome"
-APP_ICON_NAME="ant-browser"
-APP_DESKTOP_ID="ant-browser.desktop"
-APPSTREAM_ID="ant-browser"
-APP_NAME="Ant Browser"
+APP_PACKAGE_NAME="profilepool"
+APP_BINARY_NAME="profilepool"
+APP_ICON_NAME="profilepool"
+APP_DESKTOP_ID="profilepool.desktop"
+APPSTREAM_ID="profilepool"
+APP_NAME="ProfilePool"
 APP_SUMMARY="Multi-profile browser launcher with proxy-pool management"
 APP_MAINTAINER="Ant Chrome Team"
 APP_MAINTAINER_EMAIL="contact@antblack.dev"
-APP_HOMEPAGE="https://github.com/black-ant/Ant-Browser"
+APP_HOMEPAGE="https://github.com/lxinfei5/Ant-Browser"
 BUILD_DATE_UTC="$(date -u +%F)"
 ICON_SIZES=(16 24 32 48 64 128 256 512)
 
 echo "========================================"
-echo "  Ant Browser Linux Publish"
+echo "  ProfilePool Linux Publish"
 echo "========================================"
 echo "Target : $TARGET"
 echo "Version: $VERSION"
@@ -198,7 +198,7 @@ if [[ "$SKIP_BUILD" -ne 1 ]]; then
   fi
   (
     cd "$ROOT_DIR"
-    wails build -s -platform "linux/$ARCH" "${WAILS_BUILD_TAGS[@]}" -o ant-chrome
+    wails build -s -platform "linux/$ARCH" "${WAILS_BUILD_TAGS[@]}" -o profilepool
   )
 else
   echo "[WARN] skipping build step"
@@ -215,11 +215,11 @@ DEB_STAGE="$STAGING_ROOT/$TARGET/deb"
 rm -rf "$APP_STAGE" "$DEB_STAGE"
 mkdir -p "$APP_STAGE/bin" "$APP_STAGE/data" "$DEB_STAGE"
 
-cp "$APP_BIN" "$APP_STAGE/ant-chrome"
+cp "$APP_BIN" "$APP_STAGE/profilepool"
 cp "$ROOT_DIR/publish/config.init.linux.yaml" "$APP_STAGE/config.yaml"
 cp "$XRAY_SRC" "$APP_STAGE/bin/xray"
 cp "$SINGBOX_SRC" "$APP_STAGE/bin/sing-box"
-chmod +x "$APP_STAGE/ant-chrome" "$APP_STAGE/bin/xray" "$APP_STAGE/bin/sing-box"
+chmod +x "$APP_STAGE/profilepool" "$APP_STAGE/bin/xray" "$APP_STAGE/bin/sing-box"
 
 if [[ -f "$CHROME_README_SRC" ]]; then
   mkdir -p "$APP_STAGE/chrome"
@@ -227,11 +227,11 @@ if [[ -f "$CHROME_README_SRC" ]]; then
 fi
 
 mkdir -p "$OUTPUT_DIR"
-TAR_NAME="AntBrowser-${VERSION}-linux-${ARCH}.tar.gz"
+TAR_NAME="ProfilePool-${VERSION}-linux-${ARCH}.tar.gz"
 tar -C "$APP_STAGE" -czf "$OUTPUT_DIR/$TAR_NAME" .
 
 PKG_ROOT="$DEB_STAGE/${APP_PACKAGE_NAME}_${VERSION}_${ARCH}"
-INSTALL_ROOT="$PKG_ROOT/opt/ant-browser"
+INSTALL_ROOT="$PKG_ROOT/opt/profilepool"
 DESKTOP_ROOT="$PKG_ROOT/usr/share/applications"
 ICON_THEME_ROOT="$PKG_ROOT/usr/share/icons/hicolor"
 PIXMAPS_ROOT="$PKG_ROOT/usr/share/pixmaps"
@@ -242,7 +242,7 @@ for size in "${ICON_SIZES[@]}"; do
   mkdir -p "$ICON_THEME_ROOT/${size}x${size}/apps"
 done
 
-cp "$APP_STAGE/ant-chrome" "$INSTALL_ROOT/ant-chrome"
+cp "$APP_STAGE/profilepool" "$INSTALL_ROOT/profilepool"
 cp "$APP_STAGE/config.yaml" "$INSTALL_ROOT/config.yaml"
 cp "$APP_STAGE/bin/xray" "$INSTALL_ROOT/bin/xray"
 cp "$APP_STAGE/bin/sing-box" "$INSTALL_ROOT/bin/sing-box"
@@ -258,17 +258,17 @@ for size in "${ICON_SIZES[@]}"; do
 done
 ln -sf "../icons/hicolor/512x512/apps/${APP_ICON_NAME}.png" "$PIXMAPS_ROOT/${APP_ICON_NAME}.png"
 touch "$INSTALL_ROOT/data/.keep"
-chmod +x "$INSTALL_ROOT/ant-chrome" "$INSTALL_ROOT/bin/xray" "$INSTALL_ROOT/bin/sing-box"
+chmod +x "$INSTALL_ROOT/profilepool" "$INSTALL_ROOT/bin/xray" "$INSTALL_ROOT/bin/sing-box"
 
 cat > "$DESKTOP_ROOT/$APP_DESKTOP_ID" <<EOF
 [Desktop Entry]
 Version=1.0
 Name=${APP_NAME}
 Comment=${APP_SUMMARY}
-Exec=/opt/ant-browser/${APP_BINARY_NAME}
-TryExec=/opt/ant-browser/${APP_BINARY_NAME}
+Exec=/opt/profilepool/${APP_BINARY_NAME}
+TryExec=/opt/profilepool/${APP_BINARY_NAME}
 Icon=${APP_ICON_NAME}
-StartupWMClass=Ant-chrome
+StartupWMClass=ProfilePool
 Terminal=false
 Type=Application
 StartupNotify=true
@@ -291,7 +291,7 @@ cat > "$METAINFO_ROOT/${APP_PACKAGE_NAME}.metainfo.xml" <<EOF
     <binary>${APP_BINARY_NAME}</binary>
   </provides>
   <description>
-    <p>Ant Browser manages isolated browser profiles, proxy binding, and local environment configuration for multi-account workflows.</p>
+    <p>ProfilePool manages isolated browser profiles, proxy binding, and local environment configuration for multi-account workflows.</p>
     <p>The Debian package installs a launcher, theme icons, and runtime helpers for standard Linux desktop environments.</p>
   </description>
   <categories>
@@ -330,15 +330,15 @@ Installed-Size: ${INSTALLED_SIZE_KB}
 Depends: libc6 (>= 2.31), libgtk-3-0, libglib2.0-0, libwebkit2gtk-4.1-0 | libwebkit2gtk-4.0-37
 Description: ${APP_NAME} desktop app
  Multi-profile browser launcher with proxy-pool management.
- Ant Browser manages isolated browser profiles, proxy binding, and
+ ProfilePool manages isolated browser profiles, proxy binding, and
  local environment configuration for multi-account workflows.
 EOF
 
 cat > "$PKG_ROOT/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
 set -e
-ln -sf /opt/ant-browser/ant-chrome /usr/bin/ant-chrome
-chmod +x /opt/ant-browser/ant-chrome /opt/ant-browser/bin/xray /opt/ant-browser/bin/sing-box || true
+ln -sf /opt/profilepool/profilepool /usr/bin/profilepool
+chmod +x /opt/profilepool/profilepool /opt/profilepool/bin/xray /opt/profilepool/bin/sing-box || true
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
 fi
@@ -358,7 +358,7 @@ cat > "$PKG_ROOT/DEBIAN/postrm" <<'EOF'
 #!/bin/sh
 set -e
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
-  rm -f /usr/bin/ant-chrome
+  rm -f /usr/bin/profilepool
 fi
 if command -v update-desktop-database >/dev/null 2>&1; then
   update-desktop-database /usr/share/applications >/dev/null 2>&1 || true

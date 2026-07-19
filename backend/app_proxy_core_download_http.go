@@ -100,7 +100,7 @@ func fetchGitHubRelease(ctx context.Context, client *http.Client, repo string, v
 		return githubRelease{}, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("User-Agent", "ant-chrome-proxy-core-downloader")
+	req.Header.Set("User-Agent", "profilepool-proxy-core-downloader")
 	resp, err := client.Do(req)
 	if err != nil {
 		return githubRelease{}, err
@@ -224,7 +224,7 @@ func downloadProxyCoreAsset(ctx context.Context, client *http.Client, url string
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "ant-chrome-proxy-core-downloader")
+	req.Header.Set("User-Agent", "profilepool-proxy-core-downloader")
 	resp, err := client.Do(req)
 	if err != nil {
 		return err

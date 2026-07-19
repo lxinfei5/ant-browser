@@ -31,7 +31,7 @@ $exclude = ''
 if (-not [string]::IsNullOrWhiteSpace($ExcludePath)) {
   $exclude = [System.IO.Path]::GetFullPath($ExcludePath)
 }
-function Get-AntChromeResidualProcesses {
+function Get-ProfilePoolResidualProcesses {
   @(
     Get-CimInstance Win32_Process | Where-Object {
       $_.ExecutablePath -and (
@@ -44,12 +44,12 @@ function Get-AntChromeResidualProcesses {
     }
   )
 }
-$targets = @(Get-AntChromeResidualProcesses | Sort-Object ProcessId -Descending)
+$targets = @(Get-ProfilePoolResidualProcesses | Sort-Object ProcessId -Descending)
 foreach ($p in $targets) {
   try { Stop-Process -Id $p.ProcessId -Force -ErrorAction Stop } catch {}
 }
 Start-Sleep -Milliseconds 400
-$left = @(Get-AntChromeResidualProcesses)
+$left = @(Get-ProfilePoolResidualProcesses)
 if ($left.Count -gt 0) {
   $names = ($left | ForEach-Object { $_.Name + '#' + $_.ProcessId }) -join ', '
   Write-Host ('still running: ' + $names)
@@ -58,7 +58,7 @@ if ($left.Count -gt 0) {
 exit 0
 `
 
-	tempFile, err := os.CreateTemp("", "ant-chrome-cleanup-*.ps1")
+	tempFile, err := os.CreateTemp("", "profilepool-cleanup-*.ps1")
 	if err != nil {
 		return fmt.Errorf("创建清理脚本失败: %w", err)
 	}

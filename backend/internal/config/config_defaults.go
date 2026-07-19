@@ -244,7 +244,7 @@ func DefaultConfig() *Config {
 			},
 		},
 		App: AppConfig{
-			Name: "Ant Browser",
+			Name: "ProfilePool",
 			Window: WindowConfig{
 				Width:     1750,
 				Height:    1000,

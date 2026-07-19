@@ -4,7 +4,7 @@ import "ant-chrome/backend/internal/config"
 
 const (
 	// PackageFormat 标识导出包格式类型。
-	PackageFormat = "ant-chrome-full-backup"
+	PackageFormat = "profilepool-full-backup"
 	// ManifestVersion 标识 manifest.json 的结构版本。
 	ManifestVersion = 1
 )
