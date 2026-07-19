@@ -374,3 +374,38 @@ export interface AccountInput {
   credential: Record<string, any>
   metadata: Record<string, any>
 }
+
+// 账号租约（Phase 3/5）
+export interface AccountLease {
+  leaseId: string
+  accountId: string
+  profileId: string
+  workerId: string
+  purpose: string
+  status: string
+  cdpEndpoint: string
+  leasedAt: string
+  expiresAt: string
+  heartbeatAt: string
+  releasedAt: string
+  releaseResult: string
+  autoStarted: number
+  metadata: Record<string, any>
+  createdAt: string
+  updatedAt: string
+}
+
+// CSV 批量导入行（Phase 5）
+export interface AccountBatchRow {
+  platform: string
+  username: string
+  proxyName: string
+  notes: string
+  tags: string[]
+}
+
+export interface AccountBatchImportResult {
+  row: AccountBatchRow
+  account?: Account
+  error: string
+}

@@ -91,6 +91,10 @@ func (a *App) stopRuntimeServices() {
 			a.leaseReclaim.Stop()
 			a.leaseReclaim = nil
 		}
+		if a.backupScheduler != nil {
+			a.backupScheduler.Stop()
+			a.backupScheduler = nil
+		}
 		a.stopTrackedBrowserProcesses()
 		if a.xrayMgr != nil {
 			a.xrayMgr.StopAll()

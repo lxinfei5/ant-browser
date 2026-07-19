@@ -231,6 +231,7 @@ type sqlRunner interface {
 type LeaseDAO interface {
 	UpsertLease(runner sqlRunner, lease *Lease) error
 	GetLeaseByID(runner sqlRunner, leaseID string) (*Lease, error)
+	GetHeldByAccount(runner sqlRunner, accountID string) (*Lease, error)
 	ListHeld(runner sqlRunner) ([]*Lease, error)
 	ListExpired(runner sqlRunner, now string) ([]*Lease, error)
 	UpdateLeaseStatus(runner sqlRunner, leaseID, status, releasedAt, releaseResult string) error
@@ -302,6 +303,24 @@ func (d *SQLiteLeaseDAO) GetLeaseByID(runner sqlRunner, leaseID string) (*Lease,
 	lease, err := scanLease(row)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("租约不存在: %s", leaseID)
+	}
+	return lease, err
+}
+
+// GetHeldByAccount 返回指定账号当前 status='held' 的租约（由 idx_leases_one_held 保证至多一条）。
+// 无 held 租约时返回 (nil, nil)。
+func (d *SQLiteLeaseDAO) GetHeldByAccount(runner sqlRunner, accountID string) (*Lease, error) {
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
+		return nil, nil
+	}
+	row := runner.QueryRow(
+		fmt.Sprintf(`SELECT %s FROM account_leases WHERE account_id = ? AND status = 'held' LIMIT 1`, leaseColumns),
+		accountID,
+	)
+	lease, err := scanLease(row)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
 	}
 	return lease, err
 }

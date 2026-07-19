@@ -18,9 +18,14 @@ type accountPoolService interface {
 	Update(accountID string, input accountpool.AccountInput) (*accountpool.Account, error)
 	Delete(accountID string) error
 
+	// 批量导入 + 代理失败冷却（Phase 5）
+	BatchImport(rows []accountpool.AccountBatchRow) []accountpool.BatchImportResult
+	CooldownAccountsByProxy(proxyID string, cooldownSec int) ([]string, error)
+
 	// 租约（Phase 3）
 	Lease(input accountpool.LeaseInput) (*accountpool.Account, *accountpool.Lease, error)
 	GetLease(leaseID string) (*accountpool.Lease, error)
+	GetActiveLease(accountID string) (*accountpool.Lease, error)
 	Heartbeat(leaseID string, ttlSec int) (*accountpool.Lease, error)
 	Release(leaseID, result string, cooldownSec int) (*accountpool.Lease, *accountpool.Account, error)
 	MarkLeaseStarted(leaseID, cdpEndpoint string) error
@@ -83,6 +88,10 @@ func (s *LaunchServer) handleAccountByID(w http.ResponseWriter, r *http.Request)
 			s.handleAccountStart(w, r, accountID)
 		case "stop":
 			s.handleAccountStop(w, r, accountID)
+		case "lease":
+			s.handleAccountActiveLease(w, r, accountID)
+		case "force-release":
+			s.handleAccountForceRelease(w, r, accountID)
 		default:
 			writeJSON(w, http.StatusNotFound, map[string]interface{}{"ok": false, "error": "account not found"})
 		}
@@ -221,4 +230,69 @@ func mapAccountWriteErrorStatus(err error) int {
 	default:
 		return http.StatusInternalServerError
 	}
+}
+
+// handleAccountActiveLease GET /api/v1/pool/accounts/{id}/lease —— 账号当前持有的 held 租约
+func (s *LaunchServer) handleAccountActiveLease(w http.ResponseWriter, r *http.Request, accountID string) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]interface{}{"ok": false, "error": "method not allowed"})
+		return
+	}
+	lease, err := s.accountPool.GetActiveLease(accountID)
+	if err != nil {
+		writeJSON(w, mapLeaseErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	if lease == nil {
+		writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "lease": nil})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "lease": lease})
+}
+
+// accountForceReleaseRequest POST /api/v1/pool/accounts/{id}/force-release
+type accountForceReleaseRequest struct {
+	Result      string `json:"result"`
+	CooldownSec int    `json:"cooldown_sec"`
+}
+
+// handleAccountForceRelease POST /api/v1/pool/accounts/{id}/force-release —— 强制释放账号当前 held 租约
+func (s *LaunchServer) handleAccountForceRelease(w http.ResponseWriter, r *http.Request, accountID string) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]interface{}{"ok": false, "error": "method not allowed"})
+		return
+	}
+	var req accountForceReleaseRequest
+	_ = decodeLeaseBody(r, &req) // body 可为空
+
+	lease, err := s.accountPool.GetActiveLease(accountID)
+	if err != nil {
+		writeJSON(w, mapLeaseErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	if lease == nil {
+		writeJSON(w, http.StatusNotFound, map[string]interface{}{"ok": false, "error": "no active lease"})
+		return
+	}
+	released, account, err := s.accountPool.Release(lease.LeaseID, req.Result, req.CooldownSec)
+	if err != nil {
+		writeJSON(w, mapLeaseErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	// 自动启动的实例需要停止（与 lease release handler 逻辑一致）
+	if released != nil && released.AutoStarted == 1 {
+		_, _, _ = s.stopProfile(released.ProfileID)
+	}
+	accountStatus := ""
+	if account != nil {
+		accountStatus = account.Status
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":             true,
+		"lease_id":       released.LeaseID,
+		"leaseId":        released.LeaseID,
+		"account_id":     released.AccountID,
+		"accountId":      released.AccountID,
+		"account_status": accountStatus,
+	})
 }

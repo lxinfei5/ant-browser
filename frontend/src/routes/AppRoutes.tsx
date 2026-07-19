@@ -41,6 +41,10 @@ const ProxyPoolPage = lazyNamed(
   () => import("../modules/browser/pages/ProxyPoolPage"),
   "ProxyPoolPage",
 );
+const AccountPoolPage = lazyNamed(
+  () => import("../modules/browser/pages/AccountPoolPage"),
+  "AccountPoolPage",
+);
 const CoreManagementPage = lazyNamed(
   () => import("../modules/browser/pages/CoreManagementPage"),
   "CoreManagementPage",
@@ -87,6 +91,7 @@ export function AppRoutes() {
       />
       <Route path="/browser/logs" element={<BrowserLogsPage />} />
       <Route path="/browser/proxy-pool" element={<ProxyPoolPage />} />
+      <Route path="/browser/account-pool" element={<AccountPoolPage />} />
       <Route path="/browser/cores" element={<CoreManagementPage />} />
       <Route path="/browser/extensions" element={<ExtensionManagementPage />} />
       <Route path="/browser/bookmarks" element={<BookmarkSettingsPage />} />

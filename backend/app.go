@@ -37,6 +37,7 @@ type App struct {
 	accountPool    *accountpool.AccountPoolService
 	speedScheduler *browser.ProxySpeedScheduler
 	leaseReclaim   *accountpool.LeaseReclaimScheduler
+	backupScheduler *BackupScheduler
 	appRoot        string
 	version        string
 

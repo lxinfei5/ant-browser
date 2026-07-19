@@ -1,4 +1,4 @@
-import type { Account, AccountInput } from '../types'
+import type { Account, AccountInput, AccountLease, AccountBatchRow, AccountBatchImportResult } from '../types'
 import { getBindings, nowISOString } from './runtime'
 
 // 本地 mock 账号池，仅在无 Wails 绑定时使用
@@ -89,6 +89,72 @@ export async function deleteAccount(accountId: string): Promise<boolean> {
   }
   mockAccounts = mockAccounts.filter((item) => item.accountId !== accountId)
   return true
+}
+
+// AccountPoolActiveLease 返回账号当前持有的 held 租约；无则返回 null。
+export async function getAccountActiveLease(accountId: string): Promise<AccountLease | null> {
+  const bindings: any = await getBindings()
+  if (bindings?.AccountPoolActiveLease) {
+    return (await bindings.AccountPoolActiveLease(accountId)) || null
+  }
+  return null
+}
+
+// AccountPoolForceRelease 强制释放账号当前 held 租约。
+// result: ok | risk | ban | need_login；cooldownSec 仅对 risk 生效（<=0 默认 3600）。
+export async function forceReleaseAccount(
+  accountId: string,
+  result = 'ok',
+  cooldownSec = 0,
+): Promise<{ lease: AccountLease | null; account: Account | null } | null> {
+  const bindings: any = await getBindings()
+  if (bindings?.AccountPoolForceRelease) {
+    const [lease, account] = await bindings.AccountPoolForceRelease(accountId, result, cooldownSec)
+    return { lease: lease || null, account: account || null }
+  }
+  return null
+}
+
+// AccountPoolBatchImport 批量导入账号，返回每行结果（含成功账号或失败原因）。
+export async function batchImportAccounts(
+  rows: AccountBatchRow[],
+): Promise<AccountBatchImportResult[]> {
+  const bindings: any = await getBindings()
+  if (bindings?.AccountPoolBatchImport) {
+    return (await bindings.AccountPoolBatchImport(rows)) || []
+  }
+  // mock：按行生成账号
+  const results: AccountBatchImportResult[] = []
+  for (const row of rows) {
+    const account = await createAccount({
+      accountName: row.username,
+      platform: row.platform,
+      accountRef: row.username,
+      boundProfileId: '',
+      proxyId: '',
+      status: 'active',
+      cooldownUntil: '',
+      notes: row.notes,
+      tags: row.tags || [],
+      groupId: '',
+      credential: {},
+      metadata: {},
+    })
+    results.push({ row, account: account || undefined, error: account ? '' : 'create failed' })
+  }
+  return results
+}
+
+// AccountPoolCooldownByProxy 将绑定到指定代理的账号置为冷却，返回受影响账号 ID。
+export async function cooldownAccountsByProxy(
+  proxyId: string,
+  cooldownSec = 3600,
+): Promise<string[]> {
+  const bindings: any = await getBindings()
+  if (bindings?.AccountPoolCooldownByProxy) {
+    return (await bindings.AccountPoolCooldownByProxy(proxyId, cooldownSec)) || []
+  }
+  return []
 }
 
 // 便捷工具：按 boundProfileId 建立映射
