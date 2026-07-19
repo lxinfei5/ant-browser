@@ -36,6 +36,7 @@ type App struct {
 	automationMgr  *automation.Manager
 	accountPool    *accountpool.AccountPoolService
 	speedScheduler *browser.ProxySpeedScheduler
+	leaseReclaim   *accountpool.LeaseReclaimScheduler
 	appRoot        string
 	version        string
 

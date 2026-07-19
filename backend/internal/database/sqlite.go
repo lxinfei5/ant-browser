@@ -233,6 +233,36 @@ var migrations = []migration{
 			`CREATE INDEX IF NOT EXISTS idx_accounts_deleted_at ON accounts(deleted_at)`,
 		},
 	},
+	{
+		version: 14,
+		desc:    "添加 account_leases 表（账号池租约 / Phase 3）",
+		stmts: []string{
+			`CREATE TABLE IF NOT EXISTS account_leases (
+				lease_id        TEXT PRIMARY KEY,
+				account_id      TEXT NOT NULL,
+				profile_id      TEXT NOT NULL,
+				worker_id       TEXT NOT NULL DEFAULT '',
+				purpose         TEXT NOT NULL DEFAULT 'scrape',
+				status          TEXT NOT NULL DEFAULT 'held',
+				cdp_endpoint    TEXT NOT NULL DEFAULT '',
+				leased_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				expires_at      TEXT NOT NULL DEFAULT '',
+				heartbeat_at    TEXT NOT NULL DEFAULT '',
+				released_at     TEXT NOT NULL DEFAULT '',
+				release_result  TEXT NOT NULL DEFAULT '',
+				auto_started    INTEGER NOT NULL DEFAULT 0,
+				metadata_json   TEXT NOT NULL DEFAULT '{}',
+				created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`,
+			// 唯一偏索引：同一账号同一时刻只能有一条 held 租约 —— DB 强制的防重复租约保证。
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_leases_one_held ON account_leases(account_id) WHERE status='held'`,
+			`CREATE INDEX IF NOT EXISTS idx_leases_status ON account_leases(status)`,
+			`CREATE INDEX IF NOT EXISTS idx_leases_expires_at ON account_leases(expires_at)`,
+			`CREATE INDEX IF NOT EXISTS idx_leases_worker_id ON account_leases(worker_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_leases_account_id ON account_leases(account_id)`,
+		},
+	},
 	// ── 新版本在此追加，格式：
 	// {
 	//     version: 4,

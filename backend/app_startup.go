@@ -57,6 +57,7 @@ func (a *App) startup(ctx context.Context) {
 	a.startupInitAutomation()
 	a.startupInitBridgeHooks()
 	a.startupInitSpeedScheduler()
+	a.startupInitLeaseReclaim(log)
 
 	log.Info("应用启动成功")
 }
@@ -139,7 +140,11 @@ func (a *App) startupInitManagers(cfg *config.Config, db *database.DB) {
 	a.browserMgr.BookmarkDAO = browser.NewSQLiteBookmarkDAO(conn)
 	a.browserMgr.GroupDAO = browser.NewSQLiteGroupDAO(conn)
 	a.browserMgr.ExtensionDAO = browser.NewSQLiteExtensionDAO(conn)
-	a.accountPool = accountpool.NewAccountPoolService(accountpool.NewSQLiteAccountDAO(conn))
+	accountDAO := accountpool.NewSQLiteAccountDAO(conn)
+	a.accountPool = accountpool.NewAccountPoolService(accountDAO)
+	a.accountPool.SetLeaseDAO(accountpool.NewSQLiteLeaseDAO(conn))
+	a.accountPool.SetDB(conn)
+	a.accountPool.SetRuntimeProbe(a)
 
 	a.migrateToSQLite()
 
@@ -222,4 +227,14 @@ func (a *App) startupInitSpeedScheduler() {
 		5,
 	)
 	a.speedScheduler.Start()
+}
+
+// startupInitLeaseReclaim 启动租约过期回收定时器（在 launchServer + accountPool 就绪之后）
+func (a *App) startupInitLeaseReclaim(log *logger.Logger) {
+	stopFn := func(profileId string) {
+		_, _ = a.StopInstance(profileId)
+	}
+	a.leaseReclaim = accountpool.NewLeaseReclaimScheduler(a.accountPool, stopFn, 30*time.Second)
+	a.leaseReclaim.Start()
+	log.Info("租约过期回收定时器已启动", logger.F("interval", "30s"))
 }

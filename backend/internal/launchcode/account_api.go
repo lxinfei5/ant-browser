@@ -17,6 +17,14 @@ type accountPoolService interface {
 	List(filter accountpool.AccountFilter) ([]*accountpool.Account, error)
 	Update(accountID string, input accountpool.AccountInput) (*accountpool.Account, error)
 	Delete(accountID string) error
+
+	// 租约（Phase 3）
+	Lease(input accountpool.LeaseInput) (*accountpool.Account, *accountpool.Lease, error)
+	GetLease(leaseID string) (*accountpool.Lease, error)
+	Heartbeat(leaseID string, ttlSec int) (*accountpool.Lease, error)
+	Release(leaseID, result string, cooldownSec int) (*accountpool.Lease, *accountpool.Account, error)
+	MarkLeaseStarted(leaseID, cdpEndpoint string) error
+	ReclaimExpired() ([]*accountpool.Lease, error)
 }
 
 // SetAccountPoolService 注入账号池服务，供 HTTP API 使用
@@ -61,10 +69,23 @@ func (s *LaunchServer) handleAccountByID(w http.ResponseWriter, r *http.Request)
 
 	accountID, ok := parseAccountPathID(r.URL.Path)
 	if !ok {
-		writeJSON(w, http.StatusNotFound, map[string]interface{}{
-			"ok":    false,
-			"error": "account not found",
-		})
+		// 支持 /api/v1/pool/accounts/{id}/{start,stop} 子路径
+		accountID, action, actionOK := parseAccountActionPath(r.URL.Path)
+		if !actionOK {
+			writeJSON(w, http.StatusNotFound, map[string]interface{}{
+				"ok":    false,
+				"error": "account not found",
+			})
+			return
+		}
+		switch action {
+		case "start":
+			s.handleAccountStart(w, r, accountID)
+		case "stop":
+			s.handleAccountStop(w, r, accountID)
+		default:
+			writeJSON(w, http.StatusNotFound, map[string]interface{}{"ok": false, "error": "account not found"})
+		}
 		return
 	}
 
@@ -81,6 +102,17 @@ func (s *LaunchServer) handleAccountByID(w http.ResponseWriter, r *http.Request)
 			"error": "method not allowed",
 		})
 	}
+}
+
+// parseAccountActionPath 解析 /api/v1/pool/accounts/{id}/{start|stop}
+func parseAccountActionPath(path string) (accountID, action string, ok bool) {
+	rest := strings.TrimPrefix(path, "/api/v1/pool/accounts/")
+	rest = strings.Trim(rest, "/")
+	parts := strings.Split(rest, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 func (s *LaunchServer) handleListAccounts(w http.ResponseWriter, r *http.Request) {
