@@ -87,6 +87,10 @@ func (a *App) stopRuntimeServices() {
 			a.speedScheduler.Stop()
 			a.speedScheduler = nil
 		}
+		if a.leaseReclaim != nil {
+			a.leaseReclaim.Stop()
+			a.leaseReclaim = nil
+		}
 		a.stopTrackedBrowserProcesses()
 		if a.xrayMgr != nil {
 			a.xrayMgr.StopAll()
