@@ -21,6 +21,7 @@ import {
   getAccountActiveLease,
   listAccounts,
   platformLabel,
+  startBrowserInstance,
 } from '../api'
 import type { Account, AccountBatchRow, AccountLease } from '../types'
 
@@ -86,6 +87,7 @@ export function AccountPoolPage() {
   const [leaseMap, setLeaseMap] = useState<Record<string, AccountLease | null>>({})
   const [forceReleaseTarget, setForceReleaseTarget] = useState<Account | null>(null)
   const [forceReleaseResult, setForceReleaseResult] = useState('ok')
+  const [openingId, setOpeningId] = useState<string | null>(null)
 
   // 批量导入
   const [importOpen, setImportOpen] = useState(false)
@@ -138,6 +140,27 @@ export function AccountPoolPage() {
       await loadAccounts()
     } catch (error: any) {
       toast.error(error?.message || '强制释放失败')
+    }
+  }
+
+  // 打开该账号绑定的浏览器实例（按账号名定位 → 启动绑定实例）
+  const handleOpenBrowser = async (account: Account) => {
+    if (!account.boundProfileId) {
+      toast.error('该账号未绑定实例')
+      return
+    }
+    setOpeningId(account.accountId)
+    try {
+      const profile = await startBrowserInstance(account.boundProfileId)
+      if (profile) {
+        toast.success(`已打开：${account.accountName}`)
+      } else {
+        toast.error('启动失败')
+      }
+    } catch (error: any) {
+      toast.error(error?.message || '启动失败')
+    } finally {
+      setOpeningId(null)
     }
   }
 
@@ -250,16 +273,25 @@ export function AccountPoolPage() {
     {
       key: 'actions',
       title: '操作',
-      width: 110,
+      width: 200,
       align: 'right',
-      render: (_v, row) =>
-        row.lease ? (
-          <Button size="sm" variant="danger" onClick={() => setForceReleaseTarget(row.account)}>
-            强制释放
+      render: (_v, row) => (
+        <div className="flex items-center justify-end gap-1.5">
+          <Button
+            size="sm"
+            onClick={() => void handleOpenBrowser(row.account)}
+            disabled={!row.account.boundProfileId || openingId === row.account.accountId}
+            loading={openingId === row.account.accountId}
+          >
+            打开浏览器
           </Button>
-        ) : (
-          <span className="text-[var(--color-text-muted)] text-xs">-</span>
-        ),
+          {row.lease ? (
+            <Button size="sm" variant="danger" onClick={() => setForceReleaseTarget(row.account)}>
+              强制释放
+            </Button>
+          ) : null}
+        </div>
+      ),
     },
   ]
 
