@@ -17,12 +17,28 @@ type RuntimeProbe interface {
 	IsRunning(profileId string) bool
 }
 
+// ProfileFactory 由上层（App）实现，供批量导入为每行创建一个绑定实例，返回实例 ID。
+// 保持 accountpool 不依赖 browser/launchcode。
+type ProfileFactory interface {
+	CreateProfileForRow(row AccountBatchRow) (profileID string, err error)
+}
+
+// ProxyResolver 由上层（App）实现，供账号池解析代理名称/实例到代理 ID（用于批量导入与代理失败冷却）。
+type ProxyResolver interface {
+	// ProxyIDForName 按名称解析代理 ID；未找到或名称不唯一时返回空串。
+	ProxyIDForName(name string) string
+	// ProxyIDForProfile 解析绑定实例当前使用的代理 ID；无则返回空串。
+	ProxyIDForProfile(profileID string) string
+}
+
 // AccountPoolService 账号池业务服务
 type AccountPoolService struct {
-	dao      AccountDAO
-	leaseDAO LeaseDAO
-	db       *sql.DB
-	runtime  RuntimeProbe
+	dao          AccountDAO
+	leaseDAO     LeaseDAO
+	db           *sql.DB
+	runtime      RuntimeProbe
+	profileFac   ProfileFactory
+	proxyResolver ProxyResolver
 }
 
 // NewAccountPoolService 创建 AccountPoolService
@@ -43,6 +59,16 @@ func (s *AccountPoolService) SetDB(db *sql.DB) {
 // SetRuntimeProbe 注入运行态探针，用于选号时排除已运行实例
 func (s *AccountPoolService) SetRuntimeProbe(p RuntimeProbe) {
 	s.runtime = p
+}
+
+// SetProfileFactory 注入批量导入用的实例工厂
+func (s *AccountPoolService) SetProfileFactory(f ProfileFactory) {
+	s.profileFac = f
+}
+
+// SetProxyResolver 注入代理解析器（批量导入按名绑代理 + 代理失败冷却）
+func (s *AccountPoolService) SetProxyResolver(r ProxyResolver) {
+	s.proxyResolver = r
 }
 
 var (
@@ -326,6 +352,19 @@ func (s *AccountPoolService) GetLease(leaseID string) (*Lease, error) {
 	return lease, nil
 }
 
+// GetActiveLease 返回指定账号当前持有的 held 租约；无 held 租约时返回 (nil, nil)。
+// 用于 GUI 展示“账号是否被占用”并提供强制释放入口。
+func (s *AccountPoolService) GetActiveLease(accountID string) (*Lease, error) {
+	if !s.leaseStoreReady() {
+		return nil, ErrLeaseStoreUnavailable
+	}
+	accountID = strings.TrimSpace(accountID)
+	if accountID == "" {
+		return nil, fmt.Errorf("accountId is required")
+	}
+	return s.leaseDAO.GetHeldByAccount(s.db, accountID)
+}
+
 // MarkLeaseStarted 标记租约已启动实例（写入 cdp_endpoint 与 auto_started=1）。
 // 由上层 handler 在成功启动绑定实例后调用。
 func (s *AccountPoolService) MarkLeaseStarted(leaseID, cdpEndpoint string) error {
@@ -505,4 +544,121 @@ func (s *AccountPoolService) ReclaimExpired() ([]*Lease, error) {
 		return nil, fmt.Errorf("提交回收事务失败: %w", err)
 	}
 	return reclaimed, nil
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// 批量导入 + 代理失败冷却（Phase 5）
+// ──────────────────────────────────────────────────────────────────────────
+
+// BatchImport 批量导入账号：为每行创建一个绑定实例（经 ProfileFactory），按名解析并绑定代理
+// （未找到/歧义时跳过代理，与上游导入行为一致），再创建账号。单行失败不中断整批。
+// 返回每行的结果（含成功账号或失败原因）。
+func (s *AccountPoolService) BatchImport(rows []AccountBatchRow) []BatchImportResult {
+	results := make([]BatchImportResult, 0, len(rows))
+	for _, row := range rows {
+		res := BatchImportResult{Row: row}
+		platform := strings.TrimSpace(row.Platform)
+		if platform == "" {
+			res.Error = "platform is required"
+			results = append(results, res)
+			continue
+		}
+		if strings.TrimSpace(row.Username) == "" {
+			res.Error = "username is required"
+			results = append(results, res)
+			continue
+		}
+
+		// 1) 创建绑定实例
+		var profileID string
+		if s.profileFac != nil {
+			pid, err := s.profileFac.CreateProfileForRow(row)
+			if err != nil {
+				res.Error = "create profile failed: " + err.Error()
+				results = append(results, res)
+				continue
+			}
+			profileID = strings.TrimSpace(pid)
+		}
+
+		// 2) 按名解析代理（未找到/歧义则不绑定代理）
+		var proxyID string
+		if s.proxyResolver != nil && strings.TrimSpace(row.ProxyName) != "" {
+			proxyID = strings.TrimSpace(s.proxyResolver.ProxyIDForName(row.ProxyName))
+		}
+
+		// 3) 创建账号
+		accountName := strings.TrimSpace(row.Username)
+		account, err := s.Create(AccountInput{
+			AccountName:    accountName,
+			Platform:       platform,
+			AccountRef:     strings.TrimSpace(row.Username),
+			BoundProfileID: profileID,
+			ProxyID:        proxyID,
+			Notes:          row.Notes,
+			Tags:           row.Tags,
+		})
+		if err != nil {
+			res.Error = "create account failed: " + err.Error()
+			results = append(results, res)
+			continue
+		}
+		res.Account = account
+		results = append(results, res)
+	}
+	return results
+}
+
+// CooldownAccountsByProxy 将所有绑定到指定代理的账号置为 cooldown，cooldown_until=now+cooldownSec。
+// 绑定关系二选一：account.proxy_id == proxyID，或 account.bound_profile_id 经 ProxyResolver 解析的代理 == proxyID。
+// cooldownSec<=0 时默认 3600。返回受影响的账号 ID 列表。
+func (s *AccountPoolService) CooldownAccountsByProxy(proxyID string, cooldownSec int) ([]string, error) {
+	proxyID = strings.TrimSpace(proxyID)
+	if proxyID == "" {
+		return nil, fmt.Errorf("proxyId is required")
+	}
+	if cooldownSec <= 0 {
+		cooldownSec = 3600
+	}
+	accounts, err := s.dao.List(AccountFilter{})
+	if err != nil {
+		return nil, fmt.Errorf("查询账号列表失败: %w", err)
+	}
+	now := time.Now().UTC()
+	cooldownUntil := now.Add(time.Duration(cooldownSec) * time.Second).Format(time.RFC3339)
+	nowStr := now.Format(time.RFC3339)
+
+	affected := make([]string, 0)
+	for _, acc := range accounts {
+		if !s.accountBoundToProxy(acc, proxyID) {
+			continue
+		}
+		// 保留更严重的终态：banned / need_login 不应被 cooldown 覆盖。
+		if acc.Status == AccountStatusBanned || acc.Status == AccountStatusNeedLogin {
+			continue
+		}
+		// 已经在更长的冷却里则不缩短。
+		if acc.Status == AccountStatusCooldown && acc.CooldownUntil != "" && acc.CooldownUntil > cooldownUntil {
+			continue
+		}
+		if err := s.dao.UpdateAccountStatus(s.db, acc.AccountID, AccountStatusCooldown, cooldownUntil, acc.LastUsedAt, nowStr); err != nil {
+			continue
+		}
+		affected = append(affected, acc.AccountID)
+	}
+	return affected, nil
+}
+
+// accountBoundToProxy 判断账号是否绑定到指定代理（直接 proxy_id 或经实例解析）。
+func (s *AccountPoolService) accountBoundToProxy(acc *Account, proxyID string) bool {
+	if acc == nil {
+		return false
+	}
+	if strings.TrimSpace(acc.ProxyID) == proxyID {
+		return true
+	}
+	if s.proxyResolver != nil && strings.TrimSpace(acc.BoundProfileID) != "" {
+		return strings.TrimSpace(s.proxyResolver.ProxyIDForProfile(acc.BoundProfileID)) == proxyID
+	}
+	return false
 }

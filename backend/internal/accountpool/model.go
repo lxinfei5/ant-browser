@@ -115,3 +115,19 @@ const (
 	AccountStatusBanned    = "banned"
 	AccountStatusNeedLogin = "need_login"
 )
+
+// AccountBatchRow CSV 批量导入的单行输入（Phase 5）。
+type AccountBatchRow struct {
+	Platform  string   `json:"platform"`
+	Username  string   `json:"username"`
+	ProxyName string   `json:"proxyName"`
+	Notes     string   `json:"notes"`
+	Tags      []string `json:"tags"`
+}
+
+// BatchImportResult 单行导入结果：成功时 Account 非空，失败时 Error 非空。
+type BatchImportResult struct {
+	Row     AccountBatchRow `json:"row"`
+	Account *Account        `json:"account"`
+	Error   string          `json:"error"`
+}

@@ -54,6 +54,7 @@ func (a *App) startup(ctx context.Context) {
 	a.startupInitManagers(cfg, db)
 	a.startupInitLaunchCode(log)
 	a.startupInitLaunchServer(log)
+	a.startupInitBackup(log)
 	a.startupInitAutomation()
 	a.startupInitBridgeHooks()
 	a.startupInitSpeedScheduler()
@@ -145,6 +146,8 @@ func (a *App) startupInitManagers(cfg *config.Config, db *database.DB) {
 	a.accountPool.SetLeaseDAO(accountpool.NewSQLiteLeaseDAO(conn))
 	a.accountPool.SetDB(conn)
 	a.accountPool.SetRuntimeProbe(a)
+	a.accountPool.SetProfileFactory(a)
+	a.accountPool.SetProxyResolver(a)
 
 	a.migrateToSQLite()
 
@@ -237,4 +240,21 @@ func (a *App) startupInitLeaseReclaim(log *logger.Logger) {
 	a.leaseReclaim = accountpool.NewLeaseReclaimScheduler(a.accountPool, stopFn, 30*time.Second)
 	a.leaseReclaim.Start()
 	log.Info("租约过期回收定时器已启动", logger.F("interval", "30s"))
+}
+
+// startupInitBackup 启动定时备份（在 launchServer 就绪之后）。
+// interval_minutes<=0（默认）时不启动，保持行为不变。
+func (a *App) startupInitBackup(log *logger.Logger) {
+	minutes := 0
+	if a.config != nil {
+		minutes = a.config.Backup.IntervalMinutes
+	}
+	if minutes <= 0 {
+		log.Info("定时备份未启用（backup.interval_minutes<=0）")
+		return
+	}
+	interval := time.Duration(minutes) * time.Minute
+	a.backupScheduler = NewBackupScheduler(a.buildBackupExportFn(), interval)
+	a.backupScheduler.Start()
+	log.Info("定时备份已启动", logger.F("interval", fmt.Sprintf("%dm", minutes)))
 }

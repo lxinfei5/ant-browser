@@ -61,13 +61,20 @@ type Config struct {
 	ProxyCheck   ProxyCheckConfig   `yaml:"proxy_check"`
 	LaunchServer LaunchServerConfig `yaml:"launch_server"`
 	Automation   AutomationConfig   `yaml:"automation"`
+	Backup       BackupConfig       `yaml:"backup"`
+}
+
+// BackupConfig 定时备份配置（Phase 5）。IntervalMinutes<=0 表示关闭定时备份（默认）。
+type BackupConfig struct {
+	IntervalMinutes int `yaml:"interval_minutes"`
 }
 
 type ProxyCheckConfig struct {
-	BridgeStartTimeoutMs int                `yaml:"bridge_start_timeout_ms" json:"bridgeStartTimeoutMs"`
-	SpeedTargetID        string             `yaml:"speed_target_id" json:"speedTargetId"`
-	IPHealthTargetID     string             `yaml:"ip_health_target_id" json:"ipHealthTargetId"`
-	Targets              []ProxyCheckTarget `yaml:"targets" json:"targets"`
+	BridgeStartTimeoutMs    int                `yaml:"bridge_start_timeout_ms" json:"bridgeStartTimeoutMs"`
+	SpeedTargetID           string             `yaml:"speed_target_id" json:"speedTargetId"`
+	IPHealthTargetID        string             `yaml:"ip_health_target_id" json:"ipHealthTargetId"`
+	Targets                 []ProxyCheckTarget `yaml:"targets" json:"targets"`
+	CooldownAccountsOnFail  bool               `yaml:"cooldown_accounts_on_fail" json:"cooldownAccountsOnFail"`
 }
 
 type ProxyCheckTarget struct {

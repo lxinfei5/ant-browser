@@ -102,6 +102,10 @@ func (a *App) BrowserProxyCheckIPHealth(proxyId string) ProxyIPHealthResult {
 	data, err := proxy.FetchIPHealthInfo(proxyId, proxies, a.xrayMgr, a.singboxMgr, a.clashMgr, connectorType, a.proxyIPHealthConfig())
 	result := buildProxyIPHealthResult(proxyId, data, err)
 	a.persistProxyIPHealthResult(result)
+	// 代理 IP 健康检查失败：可选自动冷却所有绑定到该代理的账号（默认关闭，需显式开启）。
+	if !result.Ok && a.accountPool != nil && a.config != nil && a.config.ProxyCheck.CooldownAccountsOnFail {
+		_, _ = a.accountPool.CooldownAccountsByProxy(proxyId, 3600)
+	}
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "proxy:iphealth:result", result)
 	}
@@ -138,6 +142,10 @@ func (a *App) BrowserProxyBatchCheckIPHealth(proxyIds []string, concurrency int)
 				data, err := proxy.FetchIPHealthInfo(job.ProxyId, proxies, a.xrayMgr, a.singboxMgr, a.clashMgr, connectorType, a.proxyIPHealthConfig())
 				result := buildProxyIPHealthResult(job.ProxyId, data, err)
 				a.persistProxyIPHealthResult(result)
+				// 代理 IP 健康检查失败：可选自动冷却所有绑定到该代理的账号（默认关闭）。
+				if !result.Ok && a.accountPool != nil && a.config != nil && a.config.ProxyCheck.CooldownAccountsOnFail {
+					_, _ = a.accountPool.CooldownAccountsByProxy(job.ProxyId, 3600)
+				}
 				results[job.Idx] = result
 				if a.ctx != nil {
 					runtime.EventsEmit(a.ctx, "proxy:iphealth:result", result)
