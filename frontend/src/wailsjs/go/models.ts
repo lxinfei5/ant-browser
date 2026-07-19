@@ -1600,6 +1600,7 @@ export namespace config {
 	    speedTargetId: string;
 	    ipHealthTargetId: string;
 	    targets: ProxyCheckTarget[];
+	    cooldownAccountsOnFail: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProxyCheckConfig(source);
@@ -1611,6 +1612,7 @@ export namespace config {
 	        this.speedTargetId = source["speedTargetId"];
 	        this.ipHealthTargetId = source["ipHealthTargetId"];
 	        this.targets = this.convertValues(source["targets"], ProxyCheckTarget);
+	        this.cooldownAccountsOnFail = source["cooldownAccountsOnFail"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
