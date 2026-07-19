@@ -29,7 +29,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', '"Helvetica Neue"', 'Arial', 'sans-serif'],
+        sans: ['"Monaco"', '"Microsoft YaHei"', '"PingFang SC"', 'sans-serif'],
       },
       borderRadius: {
         'DEFAULT': '0.5rem',
