@@ -107,7 +107,7 @@ exit /b 0
 
 :run_stable
 echo ========================================
-echo   Ant Chrome - Dev Launcher
+echo   ProfilePool - Dev Launcher
 echo ========================================
 echo.
 echo Current workdir: %CD%
@@ -174,7 +174,7 @@ if not defined FRONTEND_NODE_MEMORY_POLL_MS set "FRONTEND_NODE_MEMORY_POLL_MS=30
 if not defined FRONTEND_DISABLE_HMR set "FRONTEND_DISABLE_HMR=0"
 
 echo ========================================
-echo   Ant Chrome - Dev Launcher
+echo   ProfilePool - Dev Launcher
 echo ========================================
 echo.
 echo Current workdir: %CD%
@@ -275,7 +275,7 @@ exit /b 0
 
 :cleanup_app_processes
 echo Cleaning stale app processes...
-taskkill /F /IM ant-chrome-dev.exe >nul 2>&1
+taskkill /F /IM profilepool-dev.exe >nul 2>&1
 echo.
 exit /b 0
 
@@ -297,15 +297,15 @@ exit /b 0
 
 :cleanup_dev_binary
 echo Removing stale dev binary...
-if exist "build\bin\ant-chrome-dev.exe" (
-    powershell -NoProfile -Command "$p='build\\bin\\ant-chrome-dev.exe'; for($i=0;$i -lt 5;$i++){ if(-not (Test-Path $p)){ exit 0 }; Remove-Item -Path $p -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1 }; if(Test-Path $p){ exit 2 } else { exit 0 }"
+if exist "build\bin\profilepool-dev.exe" (
+    powershell -NoProfile -Command "$p='build\\bin\\profilepool-dev.exe'; for($i=0;$i -lt 5;$i++){ if(-not (Test-Path $p)){ exit 0 }; Remove-Item -Path $p -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 1 }; if(Test-Path $p){ exit 2 } else { exit 0 }"
     if errorlevel 1 (
-        echo [ERROR] Cannot remove build\bin\ant-chrome-dev.exe.
-        echo         End ant-chrome-dev.exe in Task Manager and retry.
+        echo [ERROR] Cannot remove build\bin\profilepool-dev.exe.
+        echo         End profilepool-dev.exe in Task Manager and retry.
         exit /b 1
     )
 )
-if exist "build\bin\ant-chrome-dev.exe~" del /F /Q "build\bin\ant-chrome-dev.exe~" >nul 2>&1
+if exist "build\bin\profilepool-dev.exe~" del /F /Q "build\bin\profilepool-dev.exe~" >nul 2>&1
 echo.
 exit /b 0
 

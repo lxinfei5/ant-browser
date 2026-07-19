@@ -71,7 +71,7 @@ func (a *App) appName() string {
 			return name
 		}
 	}
-	return "Ant Browser"
+	return "ProfilePool"
 }
 
 func (a *App) appVersion() string {

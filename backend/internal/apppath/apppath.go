@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-const appStateDirName = "ant-browser"
+const appStateDirName = "profile-pool"
 
 type roots struct {
 	installRoot string
@@ -195,7 +195,7 @@ func isMacAppBundleRoot(dir string) bool {
 }
 
 func dirWritable(dir string) bool {
-	file, err := os.CreateTemp(dir, ".ant-browser-write-test-*")
+	file, err := os.CreateTemp(dir, ".profile-pool-write-test-*")
 	if err != nil {
 		return false
 	}

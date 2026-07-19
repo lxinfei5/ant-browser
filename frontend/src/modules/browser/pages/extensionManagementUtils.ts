@@ -1,7 +1,7 @@
 import type { BrowserExtension, BrowserProxy } from '../types'
 
-export const EXTENSION_HISTORY_STORAGE_KEY = 'ant-chrome.extensionManagement.history.v1'
-export const EXTENSION_DOWNLOAD_PROXY_STORAGE_KEY = 'ant-chrome.extensionManagement.downloadProxy.v1'
+export const EXTENSION_HISTORY_STORAGE_KEY = 'profilepool.extensionManagement.history.v1'
+export const EXTENSION_DOWNLOAD_PROXY_STORAGE_KEY = 'profilepool.extensionManagement.downloadProxy.v1'
 export const EXTENSION_HISTORY_LIMIT = 100
 
 export type ExtensionHistoryAction = 'lookup' | 'install' | 'import'

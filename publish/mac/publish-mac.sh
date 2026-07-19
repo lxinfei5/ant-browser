@@ -125,10 +125,10 @@ SINGBOX_SRC="$RUNTIME_DIR/sing-box"
 APP_BIN_DIR="$ROOT_DIR/build/bin"
 CHROME_README_SRC="$ROOT_DIR/chrome/README.md"
 CONFIG_INIT_SRC="$ROOT_DIR/publish/config.init.mac.yaml"
-ZIP_NAME="AntBrowser-${VERSION}-macos-${ARCH}.zip"
-APP_EXPORT="$OUTPUT_DIR/AntBrowser-${VERSION}-macos-${ARCH}.app"
+ZIP_NAME="ProfilePool-${VERSION}-macos-${ARCH}.zip"
+APP_EXPORT="$OUTPUT_DIR/ProfilePool-${VERSION}-macos-${ARCH}.app"
 STAGE_DIR="$STAGING_ROOT/$TARGET"
-APP_STAGE="$STAGE_DIR/Ant Browser.app"
+APP_STAGE="$STAGE_DIR/ProfilePool.app"
 
 find_built_app_bundle() {
   python3 - "$APP_BIN_DIR" <<'PY'
@@ -169,7 +169,7 @@ PY
 }
 
 echo "========================================"
-echo "  Ant Browser macOS Publish"
+echo "  ProfilePool macOS Publish"
 echo "========================================"
 echo "Target : $TARGET"
 echo "Version: $VERSION"
@@ -207,7 +207,7 @@ if [[ "$SKIP_BUILD" -ne 1 ]]; then
   echo "[3/4] Building macOS app bundle with Wails..."
   (
     cd "$ROOT_DIR"
-    wails build -s -platform "darwin/$ARCH" -o ant-chrome
+    wails build -s -platform "darwin/$ARCH" -o profilepool
   )
 else
   echo "[WARN] skipping build step"

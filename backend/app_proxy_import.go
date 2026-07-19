@@ -22,7 +22,7 @@ const (
 )
 
 var clashSubscriptionUserAgents = []string{
-	"clash-verge/2.0 ant-chrome/1.0",
+	"clash-verge/2.0 profilepool/1.0",
 	"FlClash/v0.8.92 clash-verge Platform/windows",
 	"clash-verge/v2.4.2",
 	"ClashforWindows/0.19.23",

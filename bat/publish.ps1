@@ -289,7 +289,7 @@ function Resolve-NsisPath {
 
 function Build-WindowsBinary {
     Write-Host "[Windows] 执行 Wails 构建..."
-    $binaryPath = Join-Path $repoRoot "build/bin/ant-chrome.exe"
+    $binaryPath = Join-Path $repoRoot "build/bin/profilepool.exe"
     Assert-RequiredSourceFiles -Action "Windows packaging" -Paths @(
         "go.mod",
         "go.sum",
@@ -318,9 +318,9 @@ function Build-WindowsBinary {
     }
 
     if (-not (Test-Path -LiteralPath $binaryPath -PathType Leaf)) {
-        throw "构建产物不存在: build\bin\ant-chrome.exe"
+        throw "构建产物不存在: build\bin\profilepool.exe"
     }
-    Write-Host "✓ 构建成功: build\bin\ant-chrome.exe"
+    Write-Host "✓ 构建成功: build\bin\profilepool.exe"
     Write-Host ""
 }
 
@@ -487,7 +487,7 @@ function New-WindowsStaging {
 
     $stagingDir = Join-Path $repoRoot "publish/staging"
     $releaseConfig = Join-Path $repoRoot "publish/config.init.yaml"
-    $binaryPath = Join-Path $repoRoot "build/bin/ant-chrome.exe"
+    $binaryPath = Join-Path $repoRoot "build/bin/profilepool.exe"
     $binDir = Join-Path $repoRoot "bin"
     $chromeRoot = Join-Path $repoRoot "chrome"
 
@@ -496,11 +496,11 @@ function New-WindowsStaging {
     }
     New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
-    Copy-Item -LiteralPath $binaryPath -Destination (Join-Path $stagingDir "ant-chrome.exe") -Force
-    if (-not (Test-Path -LiteralPath (Join-Path $stagingDir "ant-chrome.exe") -PathType Leaf)) {
-        throw "staging 中缺少 ant-chrome.exe"
+    Copy-Item -LiteralPath $binaryPath -Destination (Join-Path $stagingDir "profilepool.exe") -Force
+    if (-not (Test-Path -LiteralPath (Join-Path $stagingDir "profilepool.exe") -PathType Leaf)) {
+        throw "staging 中缺少 profilepool.exe"
     }
-    Write-Host "✓ 复制 ant-chrome.exe"
+    Write-Host "✓ 复制 profilepool.exe"
 
     if (-not (Test-Path -LiteralPath $releaseConfig -PathType Leaf)) {
         throw "未找到发布配置模板: publish\config.init.yaml"
@@ -588,9 +588,9 @@ function New-WindowsPortableArchive {
         New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
     }
 
-    $archiveName = "AntBrowser-$script:ResolvedVersion-windows-amd64-portable.zip"
+    $archiveName = "ProfilePool-$script:ResolvedVersion-windows-amd64-portable.zip"
     $archivePath = Join-Path $outputDir $archiveName
-    $rootName = "AntBrowser-$script:ResolvedVersion-windows-amd64-portable"
+    $rootName = "ProfilePool-$script:ResolvedVersion-windows-amd64-portable"
     if (Test-Path -LiteralPath $archivePath) {
         Remove-Item -LiteralPath $archivePath -Force
     }
@@ -705,7 +705,7 @@ function Publish-Linux {
     Write-Host ""
 
     $linuxScript = Join-Path $repoRoot "publish/linux/publish-linux-docker.ps1"
-    $archOutFile = Join-Path $env:TEMP ("ant-browser-linux-arch-" + [guid]::NewGuid().ToString("N") + ".txt")
+    $archOutFile = Join-Path $env:TEMP ("profilepool-linux-arch-" + [guid]::NewGuid().ToString("N") + ".txt")
     if (Test-Path -LiteralPath $archOutFile) {
         Remove-Item -LiteralPath $archOutFile -Force
     }
@@ -730,7 +730,7 @@ function Publish-Linux {
 }
 
 try {
-    Write-Section "Ant Browser - 发布打包脚本"
+    Write-Section "ProfilePool - 发布打包脚本"
     Write-Host ""
     Write-Host "当前工作目录: $repoRoot"
     Write-Host ""
@@ -762,10 +762,10 @@ try {
     Write-Section "✓ 发布完成！"
     Write-Host ""
     if ($script:WindowsInstallerDone) {
-        Write-Host "Windows 安装包: publish\output\AntBrowser-Setup-$script:ResolvedVersion.exe"
+        Write-Host "Windows 安装包: publish\output\ProfilePool-Setup-$script:ResolvedVersion.exe"
     }
     if ($script:WindowsPortableDone) {
-        Write-Host "Windows 便携包: publish\output\AntBrowser-$script:ResolvedVersion-windows-amd64-portable.zip"
+        Write-Host "Windows 便携包: publish\output\ProfilePool-$script:ResolvedVersion-windows-amd64-portable.zip"
     }
     if ($script:LinuxDone) {
         Write-Host "Linux 产物目录: publish\output\"

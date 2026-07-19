@@ -1,4 +1,18 @@
-﻿# Ant Browser
+﻿## Fork: ProfilePool
+
+> 本仓库是 `black-ant/Ant-Browser` 的私有 fork（基线上游 tag `V1.2.0`），经 **ProfilePool** 重品牌，仅供本机自用。
+
+- **上游**：https://github.com/black-ant/Ant-Browser （基线 tag `V1.2.0`）
+- **重品牌**：应用名 / 窗口标题 / macOS bundle id / 二进制输出名 / 单例锁 / 数据目录（Linux `~/.local/share/profile-pool`、macOS `~/Library/Application Support/profile-pool`、Windows `%LOCALAPPDATA%\ProfilePool`）均已改为 ProfilePool，可与官方安装包共存。Go 模块路径 `ant-chrome` 与全部 import 路径保持不变（rename 模块路径超出 Phase 1 范围）。
+- **安全加固状态**：已完成 Phase 0 对抗式安全审计（见 `docs/fork/SECURITY-AUDIT.md`），加固回合按审计 confirmed 项推进中。
+- **fork 文档**：见 `docs/fork/`（基线 `00-baseline.md`、架构 `01-architecture.md`、上游同步 `03-upstream-sync.md`、许可 `NOTICE.md`）与计划 `docs/fork-ant-browser-plan.md`。
+- **许可**：上游无 LICENSE 文件，本 fork 仅供私用，不公开再分发二进制（见 `docs/fork/NOTICE.md`）。
+
+> 以下为上游 README 原文。
+
+---
+
+# Ant Browser
 
 > 面向多账号隔离、代理绑定和本地环境管理的桌面浏览器工具（Windows / Linux / macOS unsigned）。
 
@@ -162,6 +176,8 @@ Ant Browser 适合以下场景：
 - 建议磁盘空间：2 GB 以上
 
 ### 下载与运行
+
+> ⚠️ **fork 注意**：以下为上游安装说明，产物名仍为 `AntBrowser-Setup-*.exe` / `ant-browser_*.deb` / `AntBrowser-*-macos-*.app`。本 fork（ProfilePool）的对应产物名为 `ProfilePool-Setup-*.exe` / `profilepool_*.deb` / `ProfilePool-*-macos-*.app`（见 `publish/installer.nsi`、`publish/linux/publish-linux.sh`、`publish/mac/publish-mac.sh`）。以下链接与文件名以官方为准，fork 发布前请以 fork 产物名为准。
 
 1. 前往 Releases 页面下载最新版本：<https://github.com/black-ant/Ant-Browser/releases>
 2. 安装版直接运行 `AntBrowser-Setup-*.exe`

@@ -12,7 +12,7 @@ import (
 )
 
 func backupExtractAndValidate(zipPath string) (string, backup.Manifest, error) {
-	tmpDir, err := os.MkdirTemp("", "ant-chrome-import-*")
+	tmpDir, err := os.MkdirTemp("", "profilepool-import-*")
 	if err != nil {
 		return "", backup.Manifest{}, err
 	}
