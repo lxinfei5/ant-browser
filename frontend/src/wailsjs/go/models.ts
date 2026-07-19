@@ -1,3 +1,86 @@
+export namespace accountpool {
+	
+	export class Account {
+	    accountId: string;
+	    accountName: string;
+	    platform: string;
+	    accountRef: string;
+	    boundProfileId: string;
+	    proxyId: string;
+	    status: string;
+	    cooldownUntil: string;
+	    notes: string;
+	    tags: string[];
+	    groupId: string;
+	    credential: Record<string, any>;
+	    metadata: Record<string, any>;
+	    lastUsedAt: string;
+	    createdAt: string;
+	    updatedAt: string;
+	    deletedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Account(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.accountId = source["accountId"];
+	        this.accountName = source["accountName"];
+	        this.platform = source["platform"];
+	        this.accountRef = source["accountRef"];
+	        this.boundProfileId = source["boundProfileId"];
+	        this.proxyId = source["proxyId"];
+	        this.status = source["status"];
+	        this.cooldownUntil = source["cooldownUntil"];
+	        this.notes = source["notes"];
+	        this.tags = source["tags"];
+	        this.groupId = source["groupId"];
+	        this.credential = source["credential"];
+	        this.metadata = source["metadata"];
+	        this.lastUsedAt = source["lastUsedAt"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	        this.deletedAt = source["deletedAt"];
+	    }
+	}
+	export class AccountInput {
+	    accountName: string;
+	    platform: string;
+	    accountRef: string;
+	    boundProfileId: string;
+	    proxyId: string;
+	    status: string;
+	    cooldownUntil: string;
+	    notes: string;
+	    tags: string[];
+	    groupId: string;
+	    credential: Record<string, any>;
+	    metadata: Record<string, any>;
+	
+	    static createFrom(source: any = {}) {
+	        return new AccountInput(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.accountName = source["accountName"];
+	        this.platform = source["platform"];
+	        this.accountRef = source["accountRef"];
+	        this.boundProfileId = source["boundProfileId"];
+	        this.proxyId = source["proxyId"];
+	        this.status = source["status"];
+	        this.cooldownUntil = source["cooldownUntil"];
+	        this.notes = source["notes"];
+	        this.tags = source["tags"];
+	        this.groupId = source["groupId"];
+	        this.credential = source["credential"];
+	        this.metadata = source["metadata"];
+	    }
+	}
+
+}
+
 export namespace automation {
 	
 	export class ScriptPublicAPIVariable {

@@ -2,6 +2,7 @@ package backend
 
 import (
 	"ant-chrome/backend/internal/apppath"
+	"ant-chrome/backend/internal/accountpool"
 	"ant-chrome/backend/internal/automation"
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/config"
@@ -138,6 +139,7 @@ func (a *App) startupInitManagers(cfg *config.Config, db *database.DB) {
 	a.browserMgr.BookmarkDAO = browser.NewSQLiteBookmarkDAO(conn)
 	a.browserMgr.GroupDAO = browser.NewSQLiteGroupDAO(conn)
 	a.browserMgr.ExtensionDAO = browser.NewSQLiteExtensionDAO(conn)
+	a.accountPool = accountpool.NewAccountPoolService(accountpool.NewSQLiteAccountDAO(conn))
 
 	a.migrateToSQLite()
 
@@ -162,6 +164,7 @@ func (a *App) startupInitLaunchCode(log *logger.Logger) {
 func (a *App) startupInitLaunchServer(log *logger.Logger) {
 	port := a.config.LaunchServer.Port
 	a.launchServer = launchcode.NewLaunchServer(a.launchCodeSvc, a, a.browserMgr, port)
+	a.launchServer.SetAccountPoolService(a.accountPool)
 	a.launchServer.SetAPIAuthConfig(launchcode.APIAuthConfig{
 		Enabled: a.config.LaunchServer.Auth.IsEnabled(),
 		APIKey:  a.config.LaunchServer.Auth.APIKey,

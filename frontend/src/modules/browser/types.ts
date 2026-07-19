@@ -335,3 +335,42 @@ export interface BrowserGroupInput {
 export interface BrowserGroupWithCount extends BrowserGroup {
   instanceCount: number
 }
+
+// 账号模型相关类型（Phase 2，accountpool）
+export type AccountPlatform = 'xhs' | 'x' | 'other'
+export type AccountStatus = 'active' | 'disabled'
+
+export interface Account {
+  accountId: string
+  accountName: string
+  platform: string
+  accountRef: string
+  boundProfileId: string
+  proxyId: string
+  status: string
+  cooldownUntil: string
+  notes: string
+  tags: string[]
+  groupId: string
+  credential: Record<string, any>
+  metadata: Record<string, any>
+  lastUsedAt: string
+  createdAt: string
+  updatedAt: string
+  deletedAt: string
+}
+
+export interface AccountInput {
+  accountName: string
+  platform: string
+  accountRef: string
+  boundProfileId: string
+  proxyId: string
+  status: string
+  cooldownUntil: string
+  notes: string
+  tags: string[]
+  groupId: string
+  credential: Record<string, any>
+  metadata: Record<string, any>
+}

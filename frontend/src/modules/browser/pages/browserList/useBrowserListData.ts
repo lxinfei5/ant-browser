@@ -1,6 +1,7 @@
 ﻿import { useEffect, useRef, useState } from 'react'
-import type { BrowserGroupWithCount, BrowserProfile, BrowserProxy } from '../../types'
+import type { Account, BrowserGroupWithCount, BrowserProfile, BrowserProxy } from '../../types'
 import { fetchBrowserProfiles, fetchBrowserProxies, fetchGroups } from '../../api'
+import { listAccounts } from '../../api/accounts'
 import { EventsOn } from '../../../../wailsjs/runtime/runtime'
 
 interface UseBrowserListDataOptions {
@@ -9,6 +10,7 @@ interface UseBrowserListDataOptions {
 
 export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
   const [profiles, setProfiles] = useState<BrowserProfile[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [proxies, setProxies] = useState<BrowserProxy[]>([])
   const [groups, setGroups] = useState<BrowserGroupWithCount[]>([])
@@ -91,6 +93,12 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
     }
   }
 
+  const loadAccounts = async () => {
+    try {
+      setAccounts(await listAccounts())
+    } catch { /* 账号池不可用时忽略 */ }
+  }
+
   const loadGroups = async () => {
     setGroups(await fetchGroups())
   }
@@ -102,6 +110,7 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
   useEffect(() => {
     void loadProfiles()
     loadGroups()
+    loadAccounts()
     fetchBrowserProxies().then(setProxies)
     loadCores()
 
@@ -145,6 +154,7 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
 
   return {
     profiles,
+    accounts,
     loading,
     proxies,
     groups,
@@ -157,5 +167,6 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
     mergeProfileState,
     updateProxiesState,
     loadProfiles,
+    loadAccounts,
   }
 }

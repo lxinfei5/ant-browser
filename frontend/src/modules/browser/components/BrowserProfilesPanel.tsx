@@ -8,6 +8,8 @@ import type { TableColumn } from '../../../shared/components/Table'
 
 import type { BrowserCore, BrowserProfile, BrowserProxy, ProxySpeedTestResult } from '../types'
 import { browserProxyTestSpeed, testProxyConnectivity } from '../api'
+import { indexAccountsByProfileId, platformLabel } from '../api/accounts'
+import type { Account } from '../types'
 import type { BrowserViewMode } from './BrowserListLayout'
 import { KeywordInlineRow, LaunchCodeCell } from './BrowserListWidgets'
 
@@ -23,6 +25,7 @@ interface BrowserProfilesPanelProps {
   viewMode: BrowserViewMode
   profiles: BrowserProfile[]
   proxies: BrowserProxy[]
+  accounts: Account[]
   selectedIds: Set<string>
   resolveProfileCore: (profile: BrowserProfile) => BrowserCore | null
   getProfileCoreLabel: (profile: BrowserProfile) => string
@@ -395,6 +398,7 @@ export function BrowserProfilesPanel({
   viewMode,
   profiles,
   proxies,
+  accounts,
   selectedIds,
   resolveProfileCore,
   getProfileCoreLabel,
@@ -419,6 +423,18 @@ export function BrowserProfilesPanel({
   const allSelected = profiles.length > 0 && selectedIds.size === profiles.length
   const partiallySelected = selectedIds.size > 0 && selectedIds.size < profiles.length
   const [openMoreProfileId, setOpenMoreProfileId] = useState<string | null>(null)
+  const accountByProfileId = indexAccountsByProfileId(accounts)
+
+  const accountStatusVariant = (status: string): ProfileStatusVariant => {
+    if (status === 'active') return 'success'
+    if (status === 'disabled') return 'default'
+    return 'default'
+  }
+  const accountStatusLabel = (status: string) => {
+    if (status === 'active') return '正常'
+    if (status === 'disabled') return '已停用'
+    return status || '-'
+  }
 
   const columns: TableColumn<BrowserProfile>[] = [
     {
@@ -482,6 +498,42 @@ export function BrowserProfilesPanel({
       key: 'coreId',
       title: '核心',
       render: (_, record) => <span className="text-xs">{getProfileCoreLabel(record)}</span>,
+    },
+    {
+      key: 'platform',
+      title: '平台',
+      width: 110,
+      render: (_value, record) => {
+        const account = accountByProfileId.get(record.profileId)
+        if (!account) return <span className="text-xs text-[var(--color-text-muted)]">-</span>
+        return (
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-xs truncate" title={account.accountRef || ''}>{platformLabel(account.platform)}</span>
+            {account.accountRef && (
+              <span className="text-[10px] text-[var(--color-text-muted)] truncate" title={account.accountRef}>{account.accountRef}</span>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      key: 'accountStatus',
+      title: '账号状态',
+      width: 100,
+      render: (_value, record) => {
+        const account = accountByProfileId.get(record.profileId)
+        if (!account) return <span className="text-xs text-[var(--color-text-muted)]">-</span>
+        return <Badge variant={accountStatusVariant(account.status)} dot>{accountStatusLabel(account.status)}</Badge>
+      },
+    },
+    {
+      key: 'lastUsedAt',
+      title: '最后使用',
+      width: 160,
+      render: (_value, record) => {
+        const account = accountByProfileId.get(record.profileId)
+        return <span className="text-xs text-[var(--color-text-muted)]">{formatTime(account?.lastUsedAt)}</span>
+      },
     },
     {
       key: 'proxyId',

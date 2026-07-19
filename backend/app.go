@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"ant-chrome/backend/internal/accountpool"
 	"ant-chrome/backend/internal/automation"
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/config"
@@ -33,6 +34,7 @@ type App struct {
 	launchCodeSvc  *launchcode.LaunchCodeService
 	launchServer   *launchcode.LaunchServer
 	automationMgr  *automation.Manager
+	accountPool    *accountpool.AccountPoolService
 	speedScheduler *browser.ProxySpeedScheduler
 	appRoot        string
 	version        string

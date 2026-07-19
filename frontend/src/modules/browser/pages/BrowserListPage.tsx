@@ -132,6 +132,7 @@ export function BrowserListPage() {
   } = useBrowserListSettings()
   const {
     profiles,
+    accounts,
     loading,
     proxies,
     groups,
@@ -144,6 +145,7 @@ export function BrowserListPage() {
     mergeProfileState,
     updateProxiesState,
     loadProfiles,
+    loadAccounts,
   } = useBrowserListData({ loadCores })
   const {
     runningCount,
@@ -155,7 +157,7 @@ export function BrowserListPage() {
     isProfileStopping,
     isProfileBusy,
     getProfileStatus,
-  } = useBrowserListDerived(profiles, cores, filters, startingIds, stoppingIds)
+  } = useBrowserListDerived(profiles, cores, filters, startingIds, stoppingIds, accounts)
   const {
     handleStart,
     handleStartDirect,
@@ -516,7 +518,7 @@ export function BrowserListPage() {
         filters={filters}
         onFiltersChange={setFilters}
         onToggleHeaderCollapsed={() => setHeaderCollapsed((prev) => !prev)}
-        onRefresh={() => { void loadProfiles() }}
+        onRefresh={() => { void loadProfiles(); void loadAccounts() }}
         onOpenSettings={handleOpenSettings}
         onOpenTrash={openTrashModal}
         onImportProfiles={handleImportProfiles}
@@ -558,6 +560,7 @@ export function BrowserListPage() {
         viewMode={viewMode}
         profiles={filteredProfiles}
         proxies={proxies}
+        accounts={accounts}
         selectedIds={selectedIds}
         resolveProfileCore={resolveProfileCore}
         getProfileCoreLabel={getProfileCoreLabel}

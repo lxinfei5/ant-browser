@@ -12,6 +12,8 @@ func (s *LaunchServer) buildMux() *http.ServeMux {
 	mux.HandleFunc("/api/automation/hooks/", s.handleAutomationPublicHook)
 	mux.HandleFunc("/api/profiles", s.handleProfiles)
 	mux.HandleFunc("/api/profiles/", s.handleProfileByID)
+	mux.HandleFunc("/api/v1/pool/accounts", s.handleAccounts)
+	mux.HandleFunc("/api/v1/pool/accounts/", s.handleAccountByID)
 	mux.HandleFunc("/api/runtime/active", s.handleRuntimeActive)
 	mux.HandleFunc("/api/runtime/session", s.handleRuntimeSession)
 	mux.HandleFunc("/api/runtime/status", s.handleRuntimeStatus)

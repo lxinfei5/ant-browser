@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, Filter, X } from 'lucide-react'
 import { Input, Select } from '../../../shared/components'
 import { TagFilterBar } from './TagFilterBar'
+import { ACCOUNT_PLATFORM_OPTIONS, ACCOUNT_STATUS_OPTIONS } from '../api/accounts'
 import type { BrowserCore, BrowserProxy, BrowserGroupWithCount } from '../types'
 
 export interface InstanceFilters {
@@ -12,6 +13,9 @@ export interface InstanceFilters {
   tags: Set<string>
   kwSearch: string
   groupId: string   // '' = 全部, '__ungrouped__' = 未分组, 其他 = 具体分组ID
+  // 账号池相关过滤（Phase 2）
+  platform: string  // '' = 全部平台
+  accountStatus: string  // '' = 全部账号状态
 }
 
 export const EMPTY_FILTERS: InstanceFilters = {
@@ -22,10 +26,12 @@ export const EMPTY_FILTERS: InstanceFilters = {
   tags: new Set(),
   kwSearch: '',
   groupId: '',
+  platform: '',
+  accountStatus: '',
 }
 
 export function isFiltersEmpty(f: InstanceFilters) {
-  return !f.keyword && !f.status && !f.proxyId && !f.coreId && f.tags.size === 0 && !f.kwSearch && !f.groupId
+  return !f.keyword && !f.status && !f.proxyId && !f.coreId && f.tags.size === 0 && !f.kwSearch && !f.groupId && !f.platform && !f.accountStatus
 }
 
 interface Props {
@@ -45,7 +51,7 @@ export function InstanceFilterBar({ filters, onChange, proxies, cores, allTags, 
 
   const hasFilter = !isFiltersEmpty(filters)
   const searchValue = filters.keyword || filters.kwSearch
-  const activeCount = [searchValue, filters.status, filters.proxyId, filters.coreId, filters.groupId].filter(Boolean).length + filters.tags.size
+  const activeCount = [searchValue, filters.status, filters.proxyId, filters.coreId, filters.groupId, filters.platform, filters.accountStatus].filter(Boolean).length + filters.tags.size
 
   return (
     <div className="space-y-2">
@@ -109,6 +115,21 @@ export function InstanceFilterBar({ filters, onChange, proxies, cores, allTags, 
                 { value: '__ungrouped__', label: '未分组' },
                 ...groups.map(g => ({ value: g.groupId, label: g.groupName })),
               ]}
+              style={{ width: '140px' }}
+            />
+            <Select
+              value={filters.platform}
+              onChange={e => set('platform', e.target.value)}
+              options={[
+                { value: '', label: '全部平台' },
+                ...ACCOUNT_PLATFORM_OPTIONS,
+              ]}
+              style={{ width: '140px' }}
+            />
+            <Select
+              value={filters.accountStatus}
+              onChange={e => set('accountStatus', e.target.value)}
+              options={ACCOUNT_STATUS_OPTIONS}
               style={{ width: '140px' }}
             />
             {hasFilter && (
