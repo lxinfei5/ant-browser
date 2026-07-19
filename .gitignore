@@ -58,7 +58,9 @@ publish/staging/
 publish/output/
 
 # Internal docs / scratch files
-docs/
+docs/*
+!docs/fork/
+!docs/fork-ant-browser-plan.md
 DEPLOYMENT_GUIDE.md
 plan.md
 pic/
@@ -125,3 +127,9 @@ accounts.yml
 
 # Local backups
 .local-backup/
+
+# Phase 0 probe/worker python env
+/docs/fork/.venv/
+
+# wails dev-generated mac plist (build artifact)
+/build/darwin/Info.dev.plist
