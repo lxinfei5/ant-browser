@@ -118,6 +118,8 @@ type LaunchServer struct {
 	activeID   string
 	activeName string
 	apiAuth    APIAuthConfig
+
+	accountPool accountPoolService
 }
 
 // NewLaunchServer 创建 LaunchServer

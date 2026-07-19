@@ -204,6 +204,35 @@ var migrations = []migration{
 			`ALTER TABLE browser_proxies ADD COLUMN preferred_kernel TEXT NOT NULL DEFAULT ''`,
 		},
 	},
+	{
+		version: 13,
+		desc:    "添加 accounts 表与 accountpool",
+		stmts: []string{
+			`CREATE TABLE IF NOT EXISTS accounts (
+				account_id        TEXT PRIMARY KEY,
+				account_name      TEXT NOT NULL,
+				platform          TEXT NOT NULL DEFAULT '',
+				account_ref       TEXT NOT NULL DEFAULT '',
+				bound_profile_id  TEXT NOT NULL DEFAULT '',
+				proxy_id          TEXT NOT NULL DEFAULT '',
+				status            TEXT NOT NULL DEFAULT 'active',
+				cooldown_until    TEXT NOT NULL DEFAULT '',
+				notes             TEXT NOT NULL DEFAULT '',
+				tags              TEXT NOT NULL DEFAULT '[]',
+				group_id          TEXT NOT NULL DEFAULT '',
+				credential_json   TEXT NOT NULL DEFAULT '{}',
+				metadata_json     TEXT NOT NULL DEFAULT '{}',
+				last_used_at      TEXT NOT NULL DEFAULT '',
+				created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				deleted_at        TEXT NOT NULL DEFAULT ''
+			)`,
+			`CREATE INDEX IF NOT EXISTS idx_accounts_platform ON accounts(platform)`,
+			`CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status)`,
+			`CREATE INDEX IF NOT EXISTS idx_accounts_bound_profile ON accounts(bound_profile_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_accounts_deleted_at ON accounts(deleted_at)`,
+		},
+	},
 	// ── 新版本在此追加，格式：
 	// {
 	//     version: 4,

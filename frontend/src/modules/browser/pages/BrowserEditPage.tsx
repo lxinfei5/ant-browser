@@ -9,6 +9,8 @@ import { applyLocaleToFingerprintArgs } from '../utils/fingerprintSerializer'
 import { TagInput } from '../components/TagInput'
 import { GroupSelector } from '../components/GroupSelector'
 import { ProxyPickerModal } from '../components/ProxyPickerModal'
+import { ACCOUNT_PLATFORM_OPTIONS, createAccount, listAccounts, updateAccount } from '../api/accounts'
+import type { AccountInput } from '../types'
 
 const fallbackLowLaunchArgs = ['--disable-sync', '--no-first-run']
 const directProxyID = '__direct__'
@@ -80,6 +82,15 @@ export function BrowserEditPage() {
   const [locationResolving, setLocationResolving] = useState(false)
   const [locationResult, setLocationResult] = useState<ProxyLocationResolveResult | null>(null)
 
+  // 绑定账号（Phase 2 accountpool）
+  const [accountForm, setAccountForm] = useState<{
+    platform: string
+    accountRef: string
+    notes: string
+    tags: string[]
+  }>({ platform: 'xhs', accountRef: '', notes: '', tags: [] })
+  const [existingAccountId, setExistingAccountId] = useState('')
+
   useEffect(() => {
     const loadData = async () => {
       const [coreList, proxyList, tagList, groupList, settings] = await Promise.all([
@@ -105,6 +116,20 @@ export function BrowserEditPage() {
       const list = await fetchBrowserProfiles()
       const current = list.find(item => item.profileId === id)
       if (!current) return
+      // 加载绑定到此实例的账号
+      try {
+        const accounts = await listAccounts()
+        const bound = accounts.find((item) => item.boundProfileId === id)
+        if (bound) {
+          setExistingAccountId(bound.accountId)
+          setAccountForm({
+            platform: bound.platform || 'xhs',
+            accountRef: bound.accountRef || '',
+            notes: bound.notes || '',
+            tags: bound.tags || [],
+          })
+        }
+      } catch { /* 账号池不可用时忽略 */ }
       const currentLaunchArgs = normalizeLaunchArgs(current.launchArgs)
       const normalizedCoreId = !current.coreId || current.coreId.toLowerCase() === 'default'
         ? ''
@@ -155,6 +180,38 @@ export function BrowserEditPage() {
     }
   }
 
+  const saveBoundAccount = async (profileId: string) => {
+    if (!profileId) return
+    // 没有填写账号信息则跳过
+    if (!accountForm.accountRef.trim() && !accountForm.notes.trim() && accountForm.tags.length === 0) {
+      return
+    }
+    const input: AccountInput = {
+      accountName: accountForm.accountRef.trim() || profileId,
+      platform: accountForm.platform,
+      accountRef: accountForm.accountRef.trim(),
+      boundProfileId: profileId,
+      proxyId: formData.proxyId || '',
+      status: 'active',
+      cooldownUntil: '',
+      notes: accountForm.notes.trim(),
+      tags: accountForm.tags,
+      groupId: formData.groupId || '',
+      credential: {},
+      metadata: {},
+    }
+    try {
+      if (existingAccountId) {
+        await updateAccount(existingAccountId, input)
+      } else {
+        await createAccount(input)
+      }
+    } catch (error: any) {
+      // 账号保存失败不阻塞配置保存，仅提示
+      toast.warning(typeof error === 'string' ? error : error?.message || '账号信息保存失败')
+    }
+  }
+
   const handleSave = async () => {
     const resolvedProxyId = proxyMode === 'pool' ? (formData.proxyId || '').trim() : ''
     const resolvedProxyConfig = proxyMode === 'local' ? (formData.proxyConfig || '').trim() : ''
@@ -182,11 +239,13 @@ export function BrowserEditPage() {
         return
       }
       if (isCreate) {
-        await createBrowserProfile(payload)
+        const created = await createBrowserProfile(payload)
         toast.success('配置已创建')
+        await saveBoundAccount(created?.profileId || '')
       } else if (id) {
         await updateBrowserProfile(id, payload)
         toast.success('配置已更新')
+        await saveBoundAccount(id)
       }
       setIsDirty(false)
       navigate('/browser/list')
@@ -319,6 +378,41 @@ export function BrowserEditPage() {
               onChange={groupId => handleChange('groupId', groupId)}
               placeholder="未分组"
               className="w-full"
+            />
+          </FormItem>
+        </div>
+      </Card>
+
+      <Card title="账号信息" subtitle="绑定到此实例的账号（Phase 2 账号池）">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormItem label="平台">
+            <Select
+              value={accountForm.platform}
+              onChange={e => setAccountForm(prev => ({ ...prev, platform: e.target.value }))}
+              options={ACCOUNT_PLATFORM_OPTIONS}
+            />
+          </FormItem>
+          <FormItem label="账号用户名" hint="用户名/UID">
+            <Input
+              value={accountForm.accountRef}
+              onChange={e => { setAccountForm(prev => ({ ...prev, accountRef: e.target.value })); setIsDirty(true) }}
+              placeholder="请输入账号用户名"
+            />
+          </FormItem>
+          <FormItem label="账号备注">
+            <Textarea
+              value={accountForm.notes}
+              onChange={e => { setAccountForm(prev => ({ ...prev, notes: e.target.value })); setIsDirty(true) }}
+              rows={2}
+              placeholder="账号备注信息"
+            />
+          </FormItem>
+          <FormItem label="账号标签">
+            <TagInput
+              value={accountForm.tags}
+              onChange={tags => { setAccountForm(prev => ({ ...prev, tags })); setIsDirty(true) }}
+              suggestions={allTags}
+              placeholder="输入标签后按回车"
             />
           </FormItem>
         </div>

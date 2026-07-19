@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import type { BrowserCore, BrowserProfile } from '../../types'
+import type { Account, BrowserCore, BrowserProfile } from '../../types'
 import { EMPTY_FILTERS, type InstanceFilters } from '../../components/InstanceFilterBar'
+import { indexAccountsByProfileId } from '../../api/accounts'
 import type { BrowserViewMode } from '../../components/BrowserListLayout'
 
 export const resolveProfileStatus = (running: boolean, debugReady: boolean, starting: boolean, stopping: boolean) => {
@@ -65,9 +66,11 @@ export function useBrowserListDerived(
   cores: BrowserCore[],
   filters: InstanceFilters,
   startingIds: Set<string>,
-  stoppingIds: Set<string>
+  stoppingIds: Set<string>,
+  accounts: Account[] = [],
 ) {
   const runningCount = useMemo(() => profiles.filter(profile => profile.running).length, [profiles])
+  const accountByProfileId = useMemo(() => indexAccountsByProfileId(accounts), [accounts])
   const allTags = useMemo(() => {
     const set = new Set<string>()
     profiles.forEach(profile => profile.tags?.forEach(tag => set.add(tag)))
@@ -122,9 +125,16 @@ export function useBrowserListDerived(
         if (!effectiveCore || effectiveCore.coreId !== filters.coreId) return false
       }
       if (filters.tags.size > 0 && !profile.tags?.some(tag => filters.tags.has(tag))) return false
+      // 账号池过滤（Phase 2）
+      if (filters.platform || filters.accountStatus) {
+        const account = accountByProfileId.get(profile.profileId)
+        if (!account) return false
+        if (filters.platform && account.platform !== filters.platform) return false
+        if (filters.accountStatus && account.status !== filters.accountStatus) return false
+      }
       return true
     }).sort((a, b) => naturalCompare(a.profileName, b.profileName))
-  }, [profiles, filters, defaultCore, cores])
+  }, [profiles, filters, defaultCore, cores, accountByProfileId])
 
   return {
     runningCount,
