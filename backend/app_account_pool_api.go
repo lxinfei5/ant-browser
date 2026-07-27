@@ -2,6 +2,7 @@ package backend
 
 import (
 	"ant-chrome/backend/internal/accountpool"
+	"encoding/base64"
 	"strings"
 )
 
@@ -49,7 +50,24 @@ func (a *App) AccountPoolUpdate(accountId string, input AccountInput) (*Account,
 	if a.accountPool == nil {
 		return nil, errAccountPoolUnavailable
 	}
-	return a.accountPool.Update(accountId, input)
+	var oldBound string
+	if prev, err := a.accountPool.Get(accountId); err == nil && prev != nil {
+		oldBound = prev.BoundProfileID
+	}
+	updated, err := a.accountPool.Update(accountId, input)
+	if err != nil {
+		return nil, err
+	}
+	// 改绑实例时，新旧两个 profile 的 Dock 图标克隆都需重建。
+	if a.browserMgr != nil && a.browserMgr.DockIconResolver != nil && updated != nil {
+		if oldBound != "" && oldBound != updated.BoundProfileID {
+			a.browserMgr.DockIconResolver.Invalidate(oldBound)
+		}
+		if updated.BoundProfileID != "" {
+			a.browserMgr.DockIconResolver.Invalidate(updated.BoundProfileID)
+		}
+	}
+	return updated, nil
 }
 
 // AccountPoolDelete 软删除账号
@@ -123,3 +141,79 @@ var errAccountPoolUnavailable = &accountPoolUnavailableError{}
 type accountPoolUnavailableError struct{}
 
 func (e *accountPoolUnavailableError) Error() string { return "account pool is not available" }
+
+// AccountPoolSetIcon 设置账号的 Dock 图标（仅更新图标字段，保留账号其余信息）。
+// kind: "" | color | text | image（空=清除定制）。imageDataURL 为前端 canvas/上传图
+// 渲染出的 PNG dataURL（color/text 也由前端渲染后经此传入），后端只负责持久化主图。
+func (a *App) AccountPoolSetIcon(accountId string, kind string, color string, text string, imageDataURL string) (*Account, error) {
+	if a.accountPool == nil {
+		return nil, errAccountPoolUnavailable
+	}
+	acct, err := a.accountPool.Get(accountId)
+	if err != nil {
+		return nil, err
+	}
+
+	acct.IconKind = strings.TrimSpace(kind)
+	acct.IconColor = strings.TrimSpace(color)
+	acct.IconText = strings.TrimSpace(text)
+
+	// 持久化主图 PNG（按绑定实例存），并记录引用。
+	if a.dockIconResolver != nil && acct.BoundProfileID != "" {
+		if png, derr := decodePNGDataURL(imageDataURL); derr == nil && len(png) > 0 {
+			if path, serr := a.dockIconResolver.SaveMasterPNG(acct.BoundProfileID, png); serr == nil {
+				acct.IconImage = path
+			}
+		}
+	}
+	if acct.IconKind == "" {
+		acct.IconImage = ""
+	}
+
+	updated, err := a.accountPool.Update(accountId, AccountInput{
+		AccountName:    acct.AccountName,
+		Platform:       acct.Platform,
+		AccountRef:     acct.AccountRef,
+		BoundProfileID: acct.BoundProfileID,
+		ProxyID:        acct.ProxyID,
+		Status:         acct.Status,
+		CooldownUntil:  acct.CooldownUntil,
+		Notes:          acct.Notes,
+		Tags:           acct.Tags,
+		GroupID:        acct.GroupID,
+		Credential:     acct.Credential,
+		Metadata:       acct.Metadata,
+		IconKind:       acct.IconKind,
+		IconColor:      acct.IconColor,
+		IconText:       acct.IconText,
+		IconImage:      acct.IconImage,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// 图标变更后失效该实例的克隆，下次启动重建。
+	if a.browserMgr != nil && a.browserMgr.DockIconResolver != nil && acct.BoundProfileID != "" {
+		a.browserMgr.DockIconResolver.Invalidate(acct.BoundProfileID)
+	}
+	return updated, nil
+}
+
+// BrowserProfileRebuildIcons 失效并重建全部 Dock 图标克隆（惰性，下次启动时重建）。
+func (a *App) BrowserProfileRebuildIcons() error {
+	if a.browserMgr != nil && a.browserMgr.DockIconResolver != nil {
+		a.browserMgr.DockIconResolver.RebuildAll()
+	}
+	return nil
+}
+
+// decodePNGDataURL 解析 data:image/png;base64,... 为 PNG 字节；非 dataURL 原样按 base64 尝试。
+func decodePNGDataURL(dataURL string) ([]byte, error) {
+	s := strings.TrimSpace(dataURL)
+	if s == "" {
+		return nil, nil
+	}
+	if i := strings.Index(s, ","); i >= 0 && strings.HasPrefix(s, "data:") {
+		s = s[i+1:]
+	}
+	return base64.StdEncoding.DecodeString(s)
+}

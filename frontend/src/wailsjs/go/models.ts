@@ -14,6 +14,10 @@ export namespace accountpool {
 	    groupId: string;
 	    credential: Record<string, any>;
 	    metadata: Record<string, any>;
+	    iconKind: string;
+	    iconColor: string;
+	    iconText: string;
+	    iconImage: string;
 	    lastUsedAt: string;
 	    createdAt: string;
 	    updatedAt: string;
@@ -38,6 +42,10 @@ export namespace accountpool {
 	        this.groupId = source["groupId"];
 	        this.credential = source["credential"];
 	        this.metadata = source["metadata"];
+	        this.iconKind = source["iconKind"];
+	        this.iconColor = source["iconColor"];
+	        this.iconText = source["iconText"];
+	        this.iconImage = source["iconImage"];
 	        this.lastUsedAt = source["lastUsedAt"];
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
@@ -77,6 +85,10 @@ export namespace accountpool {
 	    groupId: string;
 	    credential: Record<string, any>;
 	    metadata: Record<string, any>;
+	    iconKind: string;
+	    iconColor: string;
+	    iconText: string;
+	    iconImage: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AccountInput(source);
@@ -96,6 +108,10 @@ export namespace accountpool {
 	        this.groupId = source["groupId"];
 	        this.credential = source["credential"];
 	        this.metadata = source["metadata"];
+	        this.iconKind = source["iconKind"];
+	        this.iconColor = source["iconColor"];
+	        this.iconText = source["iconText"];
+	        this.iconImage = source["iconImage"];
 	    }
 	}
 	export class BatchImportResult {

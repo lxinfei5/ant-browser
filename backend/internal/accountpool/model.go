@@ -22,6 +22,10 @@ type Account struct {
 	GroupID        string           `json:"groupId"`
 	Credential     map[string]any   `json:"credential"`
 	Metadata       map[string]any   `json:"metadata"`
+	IconKind       string           `json:"iconKind"`  // "" | color | text | image（空=不定制 Dock 图标）
+	IconColor      string           `json:"iconColor"` // 底色（color/text 用）
+	IconText       string           `json:"iconText"`  // 首字母/短名（text 用）
+	IconImage      string           `json:"iconImage"` // 主图 PNG 引用（image 用）
 	LastUsedAt     string           `json:"lastUsedAt"`
 	CreatedAt      string            `json:"createdAt"`
 	UpdatedAt      string            `json:"updatedAt"`
@@ -42,6 +46,10 @@ type AccountInput struct {
 	GroupID        string         `json:"groupId"`
 	Credential     map[string]any `json:"credential"`
 	Metadata       map[string]any `json:"metadata"`
+	IconKind       string         `json:"iconKind"`
+	IconColor      string         `json:"iconColor"`
+	IconText       string         `json:"iconText"`
+	IconImage      string         `json:"iconImage"`
 }
 
 // AccountFilter 列表过滤条件

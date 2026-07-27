@@ -7,6 +7,7 @@ import (
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/config"
 	"ant-chrome/backend/internal/database"
+	"ant-chrome/backend/internal/dockicon"
 	"ant-chrome/backend/internal/launchcode"
 	"ant-chrome/backend/internal/logger"
 	"ant-chrome/backend/internal/proxy"
@@ -54,6 +55,7 @@ func (a *App) startup(ctx context.Context) {
 	a.startupInitManagers(cfg, db)
 	a.startupInitLaunchCode(log)
 	a.startupInitLaunchServer(log)
+	a.startupInitDockIcon(log)
 	a.startupInitBackup(log)
 	a.startupInitAutomation()
 	a.startupInitBridgeHooks()
@@ -167,6 +169,50 @@ func (a *App) startupInitLaunchCode(log *logger.Logger) {
 		log.Error("LaunchCode 加载失败", logger.F("error", err))
 	}
 	a.browserMgr.CodeProvider = a.launchCodeSvc
+}
+
+// startupInitDockIcon 注入 Dock 图标解析器：为绑定了定制图标账号的 profile
+// 生成/复用定制图标的 Chromium .app 克隆，并清理孤儿克隆缓存。
+func (a *App) startupInitDockIcon(log *logger.Logger) {
+	lookup := func(profileId string) (browser.DockIconAccount, bool) {
+		if a.accountPool == nil {
+			return browser.DockIconAccount{}, false
+		}
+		accounts, err := a.accountPool.List(accountpool.AccountFilter{})
+		if err != nil {
+			return browser.DockIconAccount{}, false
+		}
+		for _, acct := range accounts {
+			if acct == nil || acct.BoundProfileID != profileId {
+				continue
+			}
+			displayName := acct.AccountName
+			if displayName == "" {
+				displayName = acct.AccountRef
+			}
+			return browser.DockIconAccount{
+				Found:       true,
+				IconKind:    acct.IconKind,
+				IconColor:   acct.IconColor,
+				IconText:    acct.IconText,
+				DisplayName: displayName,
+			}, true
+		}
+		return browser.DockIconAccount{}, false
+	}
+
+	resolver := dockicon.NewResolver(apppath.StateRoot(a.appRoot), lookup)
+	a.dockIconResolver = resolver
+	a.browserMgr.DockIconResolver = resolver
+	a.browserMgr.DockIconLookup = lookup
+
+	// 清理孤儿克隆（profile 在应用关闭期间被删除的情况）。
+	validIds := make([]string, 0)
+	for _, p := range a.browserMgr.List() {
+		validIds = append(validIds, p.ProfileId)
+	}
+	resolver.Sweep(validIds)
+	log.Debug("Dock 图标解析器已注入", logger.F("valid_profiles", len(validIds)))
 }
 
 func (a *App) startupInitLaunchServer(log *logger.Logger) {

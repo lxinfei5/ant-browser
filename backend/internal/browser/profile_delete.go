@@ -122,6 +122,9 @@ func (m *Manager) PermanentlyDelete(profileId string) error {
 	if err := m.ProfileDAO.Delete(profileId); err != nil {
 		return err
 	}
+	if m.DockIconResolver != nil {
+		m.DockIconResolver.Remove(profileId)
+	}
 	log.Info("回收站实例已彻底删除", logger.F("profile_id", profileId))
 	return nil
 }

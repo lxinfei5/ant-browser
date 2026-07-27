@@ -6,6 +6,7 @@ import (
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/config"
 	"ant-chrome/backend/internal/database"
+	"ant-chrome/backend/internal/dockicon"
 	"ant-chrome/backend/internal/launchcode"
 	"ant-chrome/backend/internal/logger"
 	"ant-chrome/backend/internal/proxy"
@@ -35,6 +36,7 @@ type App struct {
 	launchServer   *launchcode.LaunchServer
 	automationMgr  *automation.Manager
 	accountPool    *accountpool.AccountPoolService
+	dockIconResolver *dockicon.Resolver
 	speedScheduler *browser.ProxySpeedScheduler
 	leaseReclaim   *accountpool.LeaseReclaimScheduler
 	backupScheduler *BackupScheduler

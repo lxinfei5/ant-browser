@@ -111,5 +111,41 @@ func (m *Manager) ResolveChromeBinary(profile *Profile) (string, error) {
 	}
 
 	log.Debug("使用内核", logger.F("core_id", core.CoreId), logger.F("path", exePath))
-	return exePath, nil
+
+	// Dock 图标定制：把 exe 换成该 profile 绑定账号的定制图标克隆 bundle 内 exe。
+	// 任何失败/无配置都回退原 exePath，绝不阻断启动。
+	return m.resolveDockIconExe(profile, exePath), nil
+}
+
+// resolveDockIconExe 若该 profile 绑定的账号配置了 Dock 图标，则返回定制克隆 bundle 内 exe；
+// 否则（无 resolver/无账号/未定制/物化失败）返回原 exePath。
+func (m *Manager) resolveDockIconExe(profile *Profile, sourceExe string) string {
+	log := logger.New("Browser")
+	if m.DockIconResolver == nil || m.DockIconLookup == nil || profile == nil {
+		return sourceExe
+	}
+	acct, ok := m.DockIconLookup(profile.ProfileId)
+	if !ok || !acct.Found || acct.IconKind == "" {
+		return sourceExe
+	}
+	pngPath := m.DockIconResolver.MasterPNGPath(profile.ProfileId)
+	if pngPath == "" {
+		return sourceExe
+	}
+	displayName := acct.DisplayName
+	if displayName == "" {
+		displayName = profile.ProfileName
+	}
+	exe, err := m.DockIconResolver.Materialize(profile.ProfileId, sourceExe, pngPath, displayName)
+	if err != nil {
+		log.Warn("Dock 图标物化失败，回退原内核启动",
+			logger.F("profile_id", profile.ProfileId),
+			logger.F("error", err.Error()),
+		)
+		return sourceExe
+	}
+	if exe == "" {
+		return sourceExe
+	}
+	return exe
 }

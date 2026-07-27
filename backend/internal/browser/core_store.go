@@ -52,6 +52,7 @@ func (m *Manager) SaveCore(input CoreInput) error {
 		// 同步内存
 		m.syncCoresFromDAO()
 		log.Info("内核配置保存", logger.F("core_id", coreId), logger.F("core_name", coreName))
+		m.invalidateDockIconClones()
 		return nil
 	}
 
@@ -103,6 +104,7 @@ func (m *Manager) DeleteCore(coreId string) error {
 		}
 		m.syncCoresFromDAO()
 		log.Info("内核配置删除", logger.F("core_id", coreId))
+		m.invalidateDockIconClones()
 		return nil
 	}
 
@@ -140,6 +142,7 @@ func (m *Manager) SetDefaultCore(coreId string) error {
 		}
 		m.syncCoresFromDAO()
 		log.Info("设置默认内核", logger.F("core_id", coreId))
+		m.invalidateDockIconClones()
 		return nil
 	}
 
@@ -167,6 +170,14 @@ func (m *Manager) syncCoresFromDAO() {
 	}
 	if cores, err := m.CoreDAO.List(); err == nil {
 		m.Config.Browser.Cores = cores
+	}
+}
+
+// invalidateDockIconClones 内核增删/换默认/改路径后失效全部 Dock 图标克隆，
+// 下次启动惰性重建（克隆是内核 .app 的副本，内核变了克隆即过期）。
+func (m *Manager) invalidateDockIconClones() {
+	if m.DockIconResolver != nil {
+		m.DockIconResolver.RebuildAll()
 	}
 }
 

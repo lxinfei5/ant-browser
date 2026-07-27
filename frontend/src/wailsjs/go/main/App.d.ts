@@ -27,6 +27,8 @@ export function AccountPoolGet(arg1:string):Promise<accountpool.Account>;
 
 export function AccountPoolList(arg1:string,arg2:string):Promise<Array<accountpool.Account>>;
 
+export function AccountPoolSetIcon(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<accountpool.Account>;
+
 export function AccountPoolUpdate(arg1:string,arg2:accountpool.AccountInput):Promise<accountpool.Account>;
 
 export function AutomationDemoCreateProfile():Promise<Record<string, any>>;
@@ -204,6 +206,8 @@ export function BrowserProfilePackageExport(arg1:Array<string>):Promise<backend.
 export function BrowserProfilePackageImport():Promise<backend.ProfilePackageImportResult>;
 
 export function BrowserProfilePermanentlyDelete(arg1:string):Promise<void>;
+
+export function BrowserProfileRebuildIcons():Promise<void>;
 
 export function BrowserProfileRegenerateCode(arg1:string):Promise<string>;
 

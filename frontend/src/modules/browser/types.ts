@@ -354,6 +354,10 @@ export interface Account {
   groupId: string
   credential: Record<string, any>
   metadata: Record<string, any>
+  iconKind: string
+  iconColor: string
+  iconText: string
+  iconImage: string
   lastUsedAt: string
   createdAt: string
   updatedAt: string
@@ -373,6 +377,10 @@ export interface AccountInput {
   groupId: string
   credential: Record<string, any>
   metadata: Record<string, any>
+  iconKind?: string
+  iconColor?: string
+  iconText?: string
+  iconImage?: string
 }
 
 // 账号租约（Phase 3/5）

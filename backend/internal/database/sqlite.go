@@ -271,6 +271,16 @@ var migrations = []migration{
 	//         `ALTER TABLE xxx ADD COLUMN yyy TEXT NOT NULL DEFAULT ''`,
 	//     },
 	// },
+	{
+		version: 15,
+		desc:    "accounts 表添加 Dock 图标定制字段",
+		stmts: []string{
+			`ALTER TABLE accounts ADD COLUMN icon_kind TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE accounts ADD COLUMN icon_color TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE accounts ADD COLUMN icon_text TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE accounts ADD COLUMN icon_image TEXT NOT NULL DEFAULT ''`,
+		},
+	},
 }
 
 // NewDB 创建新的数据库连接

@@ -27,7 +27,9 @@ func (m *Manager) Update(profileId string, input ProfileInput) (*Profile, error)
 
 	profile.ProfileName = input.ProfileName
 	profile.UserDataDir = input.UserDataDir
-	profile.CoreId = normalizeProfileCoreID(input.CoreId)
+	newCoreId := normalizeProfileCoreID(input.CoreId)
+	coreChanged := newCoreId != profile.CoreId
+	profile.CoreId = newCoreId
 	profile.FingerprintArgs = input.FingerprintArgs
 	if resolvedProxy.HasSelectedProxy {
 		_ = BindProfileToProxy(profile, resolvedProxy.SelectedProxy, true)
@@ -53,6 +55,9 @@ func (m *Manager) Update(profileId string, input ProfileInput) (*Profile, error)
 	log.Info("浏览器配置更新", logger.F("profile_id", profileId), logger.F("profile_name", input.ProfileName))
 	if err := m.SaveProfiles(); err != nil {
 		return nil, err
+	}
+	if coreChanged && m.DockIconResolver != nil {
+		m.DockIconResolver.Invalidate(profileId)
 	}
 	return profile, nil
 }

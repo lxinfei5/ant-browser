@@ -36,6 +36,8 @@ const accountColumns = `
 	COALESCE(status, 'active'), COALESCE(cooldown_until, ''),
 	COALESCE(notes, ''), COALESCE(tags, '[]'), COALESCE(group_id, ''),
 	COALESCE(credential_json, '{}'), COALESCE(metadata_json, '{}'),
+	COALESCE(icon_kind, ''), COALESCE(icon_color, ''),
+	COALESCE(icon_text, ''), COALESCE(icon_image, ''),
 	COALESCE(last_used_at, ''), created_at, updated_at, COALESCE(deleted_at, '')
 `
 
@@ -112,8 +114,9 @@ func (d *SQLiteAccountDAO) Upsert(account *Account) error {
 		INSERT INTO accounts
 		  (account_id, account_name, platform, account_ref, bound_profile_id, proxy_id,
 		   status, cooldown_until, notes, tags, group_id, credential_json, metadata_json,
+		   icon_kind, icon_color, icon_text, icon_image,
 		   last_used_at, created_at, updated_at, deleted_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(account_id) DO UPDATE SET
 		  account_name     = excluded.account_name,
 		  platform          = excluded.platform,
@@ -127,6 +130,10 @@ func (d *SQLiteAccountDAO) Upsert(account *Account) error {
 		  group_id          = excluded.group_id,
 		  credential_json   = excluded.credential_json,
 		  metadata_json     = excluded.metadata_json,
+		  icon_kind         = excluded.icon_kind,
+		  icon_color        = excluded.icon_color,
+		  icon_text         = excluded.icon_text,
+		  icon_image        = excluded.icon_image,
 		  last_used_at      = excluded.last_used_at,
 		  deleted_at        = excluded.deleted_at,
 		  updated_at        = excluded.updated_at`,
@@ -134,6 +141,7 @@ func (d *SQLiteAccountDAO) Upsert(account *Account) error {
 		account.BoundProfileID, account.ProxyID,
 		account.Status, account.CooldownUntil, account.Notes, string(tags), account.GroupID,
 		string(credential), string(metadata),
+		account.IconKind, account.IconColor, account.IconText, account.IconImage,
 		account.LastUsedAt, account.CreatedAt, account.UpdatedAt, account.DeletedAt,
 	)
 	if err != nil {
@@ -186,6 +194,7 @@ func scanAccount(s scanner) (*Account, error) {
 		&a.BoundProfileID, &a.ProxyID,
 		&a.Status, &a.CooldownUntil, &a.Notes, &tagsJSON, &a.GroupID,
 		&credentialJSON, &metadataJSON,
+		&a.IconKind, &a.IconColor, &a.IconText, &a.IconImage,
 		&a.LastUsedAt, &a.CreatedAt, &a.UpdatedAt, &a.DeletedAt,
 	)
 	if err != nil {

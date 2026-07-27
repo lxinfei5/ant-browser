@@ -159,6 +159,10 @@ func buildAccountFromInput(accountID string, input AccountInput) *Account {
 		GroupID:        strings.TrimSpace(input.GroupID),
 		Credential:     nonNilMap(input.Credential),
 		Metadata:       nonNilMap(input.Metadata),
+		IconKind:       strings.TrimSpace(input.IconKind),
+		IconColor:      strings.TrimSpace(input.IconColor),
+		IconText:       strings.TrimSpace(input.IconText),
+		IconImage:      strings.TrimSpace(input.IconImage),
 	}
 }
 

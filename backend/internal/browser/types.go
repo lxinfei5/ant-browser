@@ -135,6 +135,38 @@ type CodeProvider interface {
 	Remove(profileId string) error
 }
 
+// DockIconAccount 携带账号的 Dock 图标切片。
+// 定义在 browser 包内（而非 dockicon/accountpool），使 browser 无需 import 二者，避免循环依赖。
+type DockIconAccount struct {
+	Found       bool
+	IconKind    string // "" | color | text | image（空=不定制）
+	IconColor   string
+	IconText    string
+	DisplayName string
+}
+
+// DockIconLookup 由 App 层注入：根据 profileId 查其绑定账号的图标设置与显示名。
+type DockIconLookup func(profileId string) (DockIconAccount, bool)
+
+// DockIconResolver 由 dockicon 包实现：把某 profile 的启动 exe 换成定制图标的克隆 bundle 内 exe。
+type DockIconResolver interface {
+	// Materialize 返回定制图标克隆 bundle 内的可执行文件路径；sourceExe 为原始内核 exe。
+	// 任何失败都应回退返回 sourceExe（由实现保证），调用方不因图标失败而阻断启动。
+	Materialize(profileId, sourceExe, pngPath, displayName string) (string, error)
+	// Invalidate 仅失效缓存（下次启动重建），不删除主图。
+	Invalidate(profileId string)
+	// Remove 删除该 profile 的克隆与主图。
+	Remove(profileId string)
+	// Sweep 清理不在 validProfileIds 内的孤儿克隆/主图。
+	Sweep(validProfileIds []string)
+	// RebuildAll 失效全部缓存，下次启动惰性重建。
+	RebuildAll()
+	// SaveMasterPNG 持久化某 profile 的主图 PNG，返回其路径。
+	SaveMasterPNG(profileId string, png []byte) (string, error)
+	// MasterPNGPath 返回某 profile 已持久化主图 PNG 的路径；无则返回空串。
+	MasterPNGPath(profileId string) string
+}
+
 // Manager 浏览器管理器
 type Manager struct {
 	Config           *config.Config
@@ -144,6 +176,10 @@ type Manager struct {
 	BrowserProcesses map[string]*exec.Cmd
 	XrayBridges      map[string]*XrayBridge
 	CodeProvider     CodeProvider
+
+	// Dock 图标（可选注入；为空则不定制，直接用原内核 exe）
+	DockIconResolver DockIconResolver
+	DockIconLookup   DockIconLookup
 
 	// DAO 层（注入后使用 SQLite 存储，未注入时降级到 config.yaml）
 	ProfileDAO   ProfileDAO

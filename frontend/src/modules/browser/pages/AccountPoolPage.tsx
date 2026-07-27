@@ -24,6 +24,7 @@ import {
   startBrowserInstance,
 } from '../api'
 import type { Account, AccountBatchRow, AccountLease } from '../types'
+import { renderDockIconDataURL, type DockIconKind } from '../utils/dockIcon'
 
 interface AccountPoolRow {
   account: Account
@@ -60,6 +61,32 @@ function statusVariant(status: string): 'default' | 'success' | 'error' | 'warni
     default:
       return 'default'
   }
+}
+
+// AccountDot 账号 Dock 图标的小圆点预览（未定制时不渲染）。
+function AccountDot({ account }: { account: Account }) {
+  const [url, setUrl] = useState('')
+  useEffect(() => {
+    let cancelled = false
+    if (!account.iconKind) {
+      setUrl('')
+      return
+    }
+    void renderDockIconDataURL(
+      account.iconKind as DockIconKind,
+      account.iconColor,
+      account.iconText || account.accountName || account.accountRef,
+      account.iconImage,
+    ).then((u) => {
+      if (!cancelled) setUrl(u)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [account.iconKind, account.iconColor, account.iconText, account.iconImage, account.accountName, account.accountRef])
+
+  if (!account.iconKind || !url) return null
+  return <img src={url} alt="" className="w-6 h-6 rounded-md shrink-0" />
 }
 
 function statusLabel(status: string): string {
@@ -208,9 +235,12 @@ export function AccountPoolPage() {
       key: 'accountName',
       title: '账号',
       render: (_v, row) => (
-        <div className="flex flex-col">
-          <span className="text-[var(--color-text-primary)] font-medium">{row.account.accountName || '-'}</span>
-          <span className="text-xs text-[var(--color-text-muted)]">{row.account.accountRef || ''}</span>
+        <div className="flex items-center gap-2">
+          <AccountDot account={row.account} />
+          <div className="flex flex-col">
+            <span className="text-[var(--color-text-primary)] font-medium">{row.account.accountName || '-'}</span>
+            <span className="text-xs text-[var(--color-text-muted)]">{row.account.accountRef || ''}</span>
+          </div>
         </div>
       ),
     },

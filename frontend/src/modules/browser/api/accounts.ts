@@ -54,6 +54,10 @@ export async function createAccount(input: AccountInput): Promise<Account | null
     groupId: input.groupId,
     credential: input.credential || {},
     metadata: input.metadata || {},
+    iconKind: input.iconKind || '',
+    iconColor: input.iconColor || '',
+    iconText: input.iconText || '',
+    iconImage: input.iconImage || '',
     lastUsedAt: '',
     createdAt: now,
     updatedAt: now,
@@ -155,6 +159,55 @@ export async function cooldownAccountsByProxy(
     return (await bindings.AccountPoolCooldownByProxy(proxyId, cooldownSec)) || []
   }
   return []
+}
+
+export interface SetAccountIconPayload {
+  kind: string
+  color: string
+  text: string
+  imageDataURL: string
+}
+
+// AccountPoolSetIcon 设置账号的 Dock 图标（kind: '' | color | text | image）。
+export async function setAccountIcon(
+  accountId: string,
+  payload: SetAccountIconPayload,
+): Promise<Account | null> {
+  const bindings: any = await getBindings()
+  if (bindings?.AccountPoolSetIcon) {
+    return (
+      (await bindings.AccountPoolSetIcon(
+        accountId,
+        payload.kind,
+        payload.color,
+        payload.text,
+        payload.imageDataURL,
+      )) || null
+    )
+  }
+  // mock：直接更新本地账号图标字段
+  const index = mockAccounts.findIndex((item) => item.accountId === accountId)
+  if (index === -1) return null
+  const next = [...mockAccounts]
+  next[index] = {
+    ...next[index],
+    iconKind: payload.kind,
+    iconColor: payload.color,
+    iconText: payload.text,
+    updatedAt: nowISOString(),
+  }
+  mockAccounts = next
+  return next[index]
+}
+
+// BrowserProfileRebuildIcons 失效并重建全部 Dock 图标克隆（惰性，下次启动时重建）。
+export async function rebuildProfileIcons(): Promise<boolean> {
+  const bindings: any = await getBindings()
+  if (bindings?.BrowserProfileRebuildIcons) {
+    await bindings.BrowserProfileRebuildIcons()
+    return true
+  }
+  return false
 }
 
 // 便捷工具：按 boundProfileId 建立映射

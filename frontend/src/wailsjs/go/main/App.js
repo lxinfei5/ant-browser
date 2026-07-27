@@ -34,6 +34,10 @@ export function AccountPoolList(arg1, arg2) {
   return window['go']['main']['App']['AccountPoolList'](arg1, arg2);
 }
 
+export function AccountPoolSetIcon(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['AccountPoolSetIcon'](arg1, arg2, arg3, arg4, arg5);
+}
+
 export function AccountPoolUpdate(arg1, arg2) {
   return window['go']['main']['App']['AccountPoolUpdate'](arg1, arg2);
 }
@@ -388,6 +392,10 @@ export function BrowserProfilePackageImport() {
 
 export function BrowserProfilePermanentlyDelete(arg1) {
   return window['go']['main']['App']['BrowserProfilePermanentlyDelete'](arg1);
+}
+
+export function BrowserProfileRebuildIcons() {
+  return window['go']['main']['App']['BrowserProfileRebuildIcons']();
 }
 
 export function BrowserProfileRegenerateCode(arg1) {

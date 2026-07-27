@@ -3,6 +3,7 @@ package backend
 import (
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/config"
+	"ant-chrome/backend/internal/logger"
 	"os/exec"
 	"time"
 )
@@ -67,6 +68,11 @@ func (a *App) backupReloadAfterMutation() error {
 	}
 	if a.browserMgr != nil {
 		a.browserMgr.CodeProvider = a.launchCodeSvc
+	}
+	// 备份恢复可能同时替换了 DB 与内核，重建 Dock 图标解析器并失效全部克隆。
+	a.startupInitDockIcon(logger.New("App"))
+	if a.dockIconResolver != nil {
+		a.dockIconResolver.RebuildAll()
 	}
 
 	if a.browserMgr != nil && a.browserMgr.ProxyDAO != nil {

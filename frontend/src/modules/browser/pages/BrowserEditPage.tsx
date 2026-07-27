@@ -9,7 +9,9 @@ import { applyLocaleToFingerprintArgs } from '../utils/fingerprintSerializer'
 import { TagInput } from '../components/TagInput'
 import { GroupSelector } from '../components/GroupSelector'
 import { ProxyPickerModal } from '../components/ProxyPickerModal'
-import { ACCOUNT_PLATFORM_OPTIONS, createAccount, listAccounts, updateAccount } from '../api/accounts'
+import { ACCOUNT_PLATFORM_OPTIONS, createAccount, listAccounts, setAccountIcon, updateAccount } from '../api/accounts'
+import { renderDockIconDataURL, type DockIconKind } from '../utils/dockIcon'
+import { AccountIconPicker } from '../components/AccountIconPicker'
 import type { AccountInput } from '../types'
 
 const fallbackLowLaunchArgs = ['--disable-sync', '--no-first-run']
@@ -88,7 +90,11 @@ export function BrowserEditPage() {
     accountRef: string
     notes: string
     tags: string[]
-  }>({ platform: 'xhs', accountRef: '', notes: '', tags: [] })
+    iconKind: string
+    iconColor: string
+    iconText: string
+    iconImage: string
+  }>({ platform: 'xhs', accountRef: '', notes: '', tags: [], iconKind: '', iconColor: '', iconText: '', iconImage: '' })
   const [existingAccountId, setExistingAccountId] = useState('')
 
   useEffect(() => {
@@ -127,6 +133,10 @@ export function BrowserEditPage() {
             accountRef: bound.accountRef || '',
             notes: bound.notes || '',
             tags: bound.tags || [],
+            iconKind: bound.iconKind || '',
+            iconColor: bound.iconColor || '',
+            iconText: bound.iconText || '',
+            iconImage: bound.iconImage || '',
           })
         }
       } catch { /* 账号池不可用时忽略 */ }
@@ -182,8 +192,9 @@ export function BrowserEditPage() {
 
   const saveBoundAccount = async (profileId: string) => {
     if (!profileId) return
-    // 没有填写账号信息则跳过
-    if (!accountForm.accountRef.trim() && !accountForm.notes.trim() && accountForm.tags.length === 0) {
+    // 没有填写账号信息且未设置图标则跳过
+    const hasIcon = accountForm.iconKind !== ''
+    if (!accountForm.accountRef.trim() && !accountForm.notes.trim() && accountForm.tags.length === 0 && !hasIcon) {
       return
     }
     const input: AccountInput = {
@@ -201,10 +212,33 @@ export function BrowserEditPage() {
       metadata: {},
     }
     try {
+      let accountId = existingAccountId
       if (existingAccountId) {
         await updateAccount(existingAccountId, input)
       } else {
-        await createAccount(input)
+        const created = await createAccount(input)
+        accountId = created?.accountId || ''
+        if (accountId) setExistingAccountId(accountId)
+      }
+      // 设置/更新 Dock 图标（color/text 由前端 canvas 渲染，image 用上传图）
+      if (accountId) {
+        const text = accountForm.iconText.trim() || accountForm.accountRef.trim() || accountForm.platform
+        const imageDataURL =
+          accountForm.iconKind === 'image'
+            ? accountForm.iconImage
+            : accountForm.iconKind
+              ? await renderDockIconDataURL(
+                  accountForm.iconKind as DockIconKind,
+                  accountForm.iconColor,
+                  text,
+                )
+              : ''
+        await setAccountIcon(accountId, {
+          kind: accountForm.iconKind,
+          color: accountForm.iconColor,
+          text,
+          imageDataURL,
+        })
       }
     } catch (error: any) {
       // 账号保存失败不阻塞配置保存，仅提示
@@ -413,6 +447,16 @@ export function BrowserEditPage() {
               onChange={tags => { setAccountForm(prev => ({ ...prev, tags })); setIsDirty(true) }}
               suggestions={allTags}
               placeholder="输入标签后按回车"
+            />
+          </FormItem>
+          <FormItem label="Dock 图标" hint="macOS Dock 上区分此账号的浏览器（仅 macOS 生效）">
+            <AccountIconPicker
+              kind={accountForm.iconKind}
+              color={accountForm.iconColor}
+              text={accountForm.iconText}
+              image={accountForm.iconImage}
+              fallbackText={accountForm.accountRef || accountForm.platform}
+              onChange={(patch) => { setAccountForm(prev => ({ ...prev, ...patch })); setIsDirty(true) }}
             />
           </FormItem>
         </div>

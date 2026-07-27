@@ -8,7 +8,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// applyAccountsSchema 重建 accounts 表，模拟 v13 迁移
+// applyAccountsSchema 重建 accounts 表，模拟 v15 迁移
 func applyAccountsSchema(t *testing.T, db *sql.DB) {
 	t.Helper()
 	schema := `
@@ -26,6 +26,10 @@ CREATE TABLE IF NOT EXISTS accounts (
 	group_id          TEXT NOT NULL DEFAULT '',
 	credential_json   TEXT NOT NULL DEFAULT '{}',
 	metadata_json     TEXT NOT NULL DEFAULT '{}',
+	icon_kind         TEXT NOT NULL DEFAULT '',
+	icon_color        TEXT NOT NULL DEFAULT '',
+	icon_text         TEXT NOT NULL DEFAULT '',
+	icon_image        TEXT NOT NULL DEFAULT '',
 	last_used_at      TEXT NOT NULL DEFAULT '',
 	created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
