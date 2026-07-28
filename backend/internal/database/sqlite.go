@@ -266,6 +266,11 @@ var migrations = []migration{
 	// 上游 v13/v14 与本地 v13/v14（accounts / account_leases）版本号冲突。
 	// 迁移器按 MAX(version) 跳过，为兼容已在本地 develop 上创建、版本已到 14 的开发库，
 	// 将上游迁移重编号为 15/16（语句均为幂等的 ALTER ADD COLUMN，重复执行会被忽略）。
+	//
+	// 注意：部分历史分支（如 dock-icon）曾把 version=15 用于图标列。
+	// 这类库会出现 MAX(version)>=16 但缺少 restore_last_session 的情况，
+	// 导致 ProfileDAO.List 查询失败、内存实例表为空、启动时报“未找到实例配置”。
+	// 用 version=17 补齐，并在 Migrate 末尾做关键列自愈。
 	{
 		version: 15,
 		desc:    "实例表添加历史标签恢复覆盖字段（上游 v13）",
@@ -278,6 +283,13 @@ var migrations = []migration{
 		desc:    "实例表添加内存限制字段（上游 v14）",
 		stmts: []string{
 			`ALTER TABLE browser_profiles ADD COLUMN memory_limit_mb INTEGER NOT NULL DEFAULT 0`,
+		},
+	},
+	{
+		version: 17,
+		desc:    "补齐 restore_last_session（兼容历史分支占用 v15 的库）",
+		stmts: []string{
+			`ALTER TABLE browser_profiles ADD COLUMN restore_last_session TEXT NOT NULL DEFAULT ''`,
 		},
 	},
 	// ── 新版本在此追加，格式：
@@ -361,6 +373,27 @@ func (db *DB) Migrate() error {
 		}
 	}
 
+	// 版本号冲突/历史分支可能导致“版本已到 N 但关键列仍缺失”。
+	// 在迁移结束后做一次幂等自愈，避免实例表无法加载。
+	if err := db.ensureCriticalBrowserProfileColumns(); err != nil {
+		return fmt.Errorf("校验 browser_profiles 关键列失败: %w", err)
+	}
+
+	return nil
+}
+
+// ensureCriticalBrowserProfileColumns 确保 ProfileDAO 依赖的列存在。
+// 仅做幂等 ADD COLUMN；列已存在时忽略错误。
+func (db *DB) ensureCriticalBrowserProfileColumns() error {
+	critical := []string{
+		`ALTER TABLE browser_profiles ADD COLUMN restore_last_session TEXT NOT NULL DEFAULT ''`,
+		`ALTER TABLE browser_profiles ADD COLUMN memory_limit_mb INTEGER NOT NULL DEFAULT 0`,
+	}
+	for _, stmt := range critical {
+		if _, err := db.conn.Exec(stmt); err != nil && !isColumnExistsError(err) {
+			return fmt.Errorf("执行语句失败 [%s]: %w", truncate(stmt, 60), err)
+		}
+	}
 	return nil
 }
 

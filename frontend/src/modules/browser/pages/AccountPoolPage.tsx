@@ -17,13 +17,14 @@ import {
   ACCOUNT_PLATFORM_OPTIONS,
   ACCOUNT_STATUS_OPTIONS,
   batchImportAccounts,
+  fetchBrowserProfiles,
   forceReleaseAccount,
   getAccountActiveLease,
   listAccounts,
   platformLabel,
   startBrowserInstance,
 } from '../api'
-import type { Account, AccountBatchRow, AccountLease } from '../types'
+import type { Account, AccountBatchRow, AccountLease, BrowserProfile } from '../types'
 
 interface AccountPoolRow {
   account: Account
@@ -81,6 +82,7 @@ function statusLabel(status: string): string {
 
 export function AccountPoolPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [profiles, setProfiles] = useState<BrowserProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [filterPlatform, setFilterPlatform] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -94,11 +96,25 @@ export function AccountPoolPage() {
   const [importText, setImportText] = useState('')
   const [importing, setImporting] = useState(false)
 
+  const profileNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const profile of profiles) {
+      if (profile.profileId) {
+        map.set(profile.profileId, profile.profileName || profile.profileId)
+      }
+    }
+    return map
+  }, [profiles])
+
   const loadAccounts = useCallback(async () => {
     setLoading(true)
     try {
-      const list = await listAccounts(filterPlatform, filterStatus)
+      const [list, profileList] = await Promise.all([
+        listAccounts(filterPlatform, filterStatus),
+        fetchBrowserProfiles().catch(() => [] as BrowserProfile[]),
+      ])
       setAccounts(list)
+      setProfiles(profileList)
       // 并发查询每个账号的活跃租约
       const entries = await Promise.all(
         list.map(async (acc) => [acc.accountId, await getAccountActiveLease(acc.accountId)] as const),
@@ -120,12 +136,19 @@ export function AccountPoolPage() {
   }, [loadAccounts])
 
   const rows: AccountPoolRow[] = useMemo(() => {
-    return accounts.map((account) => ({
-      account,
-      profileName: account.boundProfileId ? account.boundProfileId.slice(0, 8) : '-',
-      lease: leaseMap[account.accountId] ?? null,
-    }))
-  }, [accounts, leaseMap])
+    return accounts.map((account) => {
+      const boundId = (account.boundProfileId || '').trim()
+      let profileName = '-'
+      if (boundId) {
+        profileName = profileNameById.get(boundId) || `${boundId.slice(0, 8)}…（实例未加载）`
+      }
+      return {
+        account,
+        profileName,
+        lease: leaseMap[account.accountId] ?? null,
+      }
+    })
+  }, [accounts, leaseMap, profileNameById])
 
   const handleForceRelease = async () => {
     if (!forceReleaseTarget) return
@@ -145,20 +168,30 @@ export function AccountPoolPage() {
 
   // 打开该账号绑定的浏览器实例（按账号名定位 → 启动绑定实例）
   const handleOpenBrowser = async (account: Account) => {
-    if (!account.boundProfileId) {
+    const boundId = (account.boundProfileId || '').trim()
+    if (!boundId) {
       toast.error('该账号未绑定实例')
+      return
+    }
+    if (profiles.length > 0 && !profileNameById.has(boundId)) {
+      toast.error('绑定的实例当前未加载，请刷新实例列表或重启应用后重试')
       return
     }
     setOpeningId(account.accountId)
     try {
-      const profile = await startBrowserInstance(account.boundProfileId)
+      const profile = await startBrowserInstance(boundId)
       if (profile) {
         toast.success(`已打开：${account.accountName}`)
       } else {
         toast.error('启动失败')
       }
     } catch (error: any) {
-      toast.error(error?.message || '启动失败')
+      const message = error?.message || '启动失败'
+      if (typeof message === 'string' && message.includes('未找到实例配置')) {
+        toast.error('未找到对应实例配置。若账号池仍显示绑定关系，请重启应用后重试（多为数据库结构升级未生效）。')
+      } else {
+        toast.error(message)
+      }
     } finally {
       setOpeningId(null)
     }
