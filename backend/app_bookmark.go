@@ -30,11 +30,11 @@ var defaultBookmarkList = []BrowserBookmark{
 	{Name: "Ping0", URL: "https://ping0.cc/"},
 }
 
+// verificationBookmarkList 仅保留受保护的本应用指纹检测书签。
+// ProfilePool 分叉已移除上游强制注入的第三方推广书签（ippure/iplark/ping0），
+// 用户可自由删除；它们仍可作为普通默认书签存在，但不再不可删除。
 var verificationBookmarkList = []BrowserBookmark{
 	{Name: "指纹检测", URL: fingerprintCheckBookmarkURL},
-	{Name: "IPPure", URL: "https://ippure.com/"},
-	{Name: "IPLark", URL: "https://iplark.com/"},
-	{Name: "Ping0", URL: "https://ping0.cc/"},
 }
 
 var protectedBookmarkList = []BrowserBookmark{

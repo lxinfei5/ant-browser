@@ -167,12 +167,26 @@ func extractTarArchiveAndStripRoot(archivePath, dest string, progressCb func(int
 				return err
 			}
 		case tar.TypeSymlink:
+			if err := validateTarLinkTarget(dest, targetPath, header.Linkname); err != nil {
+				return err
+			}
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
 				return err
 			}
 			_ = os.Remove(targetPath)
 			if err := os.Symlink(header.Linkname, targetPath); err != nil {
 				return fmt.Errorf("创建符号链接失败 %s: %w", cleanName, err)
+			}
+		case tar.TypeLink:
+			if err := validateTarLinkTarget(dest, dest, header.Linkname); err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+				return err
+			}
+			_ = os.Remove(targetPath)
+			if err := os.Link(filepath.Join(dest, filepath.FromSlash(header.Linkname)), targetPath); err != nil {
+				return fmt.Errorf("创建硬链接失败 %s: %w", cleanName, err)
 			}
 		case tar.TypeReg, tar.TypeRegA:
 			if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
@@ -327,6 +341,24 @@ func safeArchiveTargetPath(dest, cleanName string) (string, error) {
 		return "", fmt.Errorf("非法文件路径: %s", cleanName)
 	}
 	return targetPath, nil
+}
+
+// validateTarLinkTarget 校验 tar 符号/硬链接的链接目标，防止越界任意写。
+// linkname 为绝对路径，或解析后逃逸出 dest 时拒绝（zip-slip via symlink follow）。
+// linkParent 是链接本身所在目录（相对链接相对它解析）；dest 是允许写入的根目录。
+func validateTarLinkTarget(dest, linkParent, linkname string) error {
+	if strings.TrimSpace(linkname) == "" {
+		return fmt.Errorf("非法链接目标: 空")
+	}
+	if filepath.IsAbs(linkname) || strings.HasPrefix(filepath.ToSlash(linkname), "/") {
+		return fmt.Errorf("非法链接目标(绝对路径): %s", linkname)
+	}
+	resolved := filepath.Clean(filepath.Join(linkParent, filepath.FromSlash(linkname)))
+	destClean := filepath.Clean(dest)
+	if resolved != destClean && !strings.HasPrefix(resolved, destClean+string(os.PathSeparator)) {
+		return fmt.Errorf("非法链接目标(逃逸目标目录): %s", linkname)
+	}
+	return nil
 }
 
 func writeReaderToFile(targetPath string, reader io.Reader, mode os.FileMode) error {
