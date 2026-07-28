@@ -16,44 +16,47 @@ html {
 }
 
 body {
-  font-family: 'Monaco', 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  background: var(--color-bg-base);
-  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  background: var(--bg-base);
+  color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.5;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  line-height: 1.6;
+  transition: background-color var(--dur-med) var(--ease), color var(--dur-med) var(--ease);
 }
 
 /* 选中文本样式 */
 ::selection {
-  background: var(--color-accent);
-  color: var(--color-text-inverse);
+  background: var(--accent-soft);
+  color: var(--text-primary);
 }
 
 /* 滚动条样式 */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: var(--bg-base);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
-  border-radius: 3px;
+  background: var(--border-strong);
+  border-radius: 5px;
+  border: 2px solid var(--bg-base);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--color-text-muted);
+  background: var(--text-muted);
 }
 
-/* 聚焦样式 */
-:focus-visible {
-  outline: 2px solid var(--color-accent);
+/* 聚焦样式 — 始终使用 accent 环形指示 */
+*:focus-visible {
+  outline: 2px solid var(--ring);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* 链接样式 */
@@ -127,11 +130,6 @@ input, select, textarea {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-}
-
-/* 图标样式 */
-.fallback-logo .fallback-content {
-  display: block;
 }
 
 /* 新增动画 */

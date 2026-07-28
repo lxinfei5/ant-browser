@@ -1,7 +1,3 @@
-/* 主题样式汇总 */
+/* 主题样式汇总 — light is the :root default in base.css */
 @import './base.css';
 @import './dark.css';
-@import './light.css';
-@import './cream.css';
-@import './mint.css';
-@import './ocean.css';

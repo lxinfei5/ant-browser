@@ -25,11 +25,11 @@ const ICON_MAP = {
 }
 
 const CHANNEL_ICON_CLASS: Partial<Record<IconKey, string>> = {
-  'book-open': 'text-[#1e80ff]',
-  globe: 'text-[#0f766e]',
-  'message-square': 'text-[#16a34a]',
+  'book-open': 'text-[var(--info)]',
+  globe: 'text-[var(--accent)]',
+  'message-square': 'text-[var(--success)]',
   github: 'text-[var(--color-text-primary)]',
-  mail: 'text-[var(--color-accent)]',
+  mail: 'text-[var(--accent)]',
 }
 
 export function ProfilePage() {
@@ -73,7 +73,7 @@ export function ProfilePage() {
       <Card padding="lg" className="rounded-[26px]">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 flex-col gap-5 sm:flex-row sm:items-start">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[20px] bg-[#1f2d46] text-[34px] font-bold tracking-[0.08em] text-white shadow-sm">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[20px] bg-[var(--accent-soft)] text-[34px] font-bold tracking-[0.08em] text-[var(--accent)] shadow-sm">
               {authorInfo.initial}
             </div>
 

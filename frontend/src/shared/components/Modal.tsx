@@ -38,26 +38,26 @@ export function Modal({
   return createPortal(
     <div className="fixed inset-0 z-[9990] flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-[rgba(4,8,12,0.62)] backdrop-blur-[6px] animate-fade-in"
         onClick={closable ? onClose : undefined}
       />
 
       <div
-        className="relative bg-[var(--color-bg-elevated)] rounded-xl shadow-2xl animate-scale-in max-h-[90vh] w-full flex flex-col"
+        className="relative bg-[var(--bg-overlay)] border border-[var(--border-subtle)] rounded-[var(--radius-xl)] shadow-[var(--shadow-lg)] animate-scale-in max-h-[90vh] w-full flex flex-col"
         style={{ width, maxWidth: '90vw' }}
         onClick={(e) => e.stopPropagation()}
       >
         {(title || closable) && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] flex-shrink-0">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-subtle)] flex-shrink-0">
             {title && (
-              <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+              <h3 className="text-[17px] font-semibold text-[var(--text-primary)]">
                 {title}
               </h3>
             )}
             {closable && (
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-muted)] transition-colors ml-auto"
+                className="p-1.5 rounded-[var(--radius-md)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors ml-auto"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -70,7 +70,7 @@ export function Modal({
         </div>
 
         {footer && (
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)] flex-shrink-0">
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--border-subtle)] flex-shrink-0">
             {footer}
           </div>
         )}
@@ -114,7 +114,7 @@ export function ConfirmModal({
             {cancelText}
           </Button>
           <Button
-            variant={danger ? 'danger' : 'primary'}
+            variant={danger ? 'danger-filled' : 'primary'}
             onClick={() => {
               onConfirm()
               onClose()

@@ -70,11 +70,18 @@ const icons = {
   info: Info,
 }
 
-const styles = {
-  success: 'bg-[var(--color-bg-surface)] text-[var(--color-success)] border-[var(--color-success)]/30 shadow-lg shadow-[var(--color-success)]/5',
-  error: 'bg-[var(--color-bg-surface)] text-[var(--color-error)] border-[var(--color-error)]/30 shadow-lg shadow-[var(--color-error)]/5',
-  warning: 'bg-[var(--color-bg-surface)] text-[var(--color-warning)] border-[var(--color-warning)]/30 shadow-lg shadow-[var(--color-warning)]/5',
-  info: 'bg-[var(--color-bg-surface)] text-[var(--color-accent)] border-[var(--color-accent)]/30 shadow-lg shadow-[var(--color-accent)]/5',
+const barStyles = {
+  success: 'bg-[var(--success)]',
+  error: 'bg-[var(--danger)]',
+  warning: 'bg-[var(--warning)]',
+  info: 'bg-[var(--info)]',
+}
+
+const iconStyles = {
+  success: 'text-[var(--success)]',
+  error: 'text-[var(--danger)]',
+  warning: 'text-[var(--warning)]',
+  info: 'text-[var(--info)]',
 }
 
 function ToastItem({ toast: t }: { toast: Toast }) {
@@ -83,13 +90,17 @@ function ToastItem({ toast: t }: { toast: Toast }) {
 
   return (
     <div
-      className={`flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg animate-slide-in-right ${styles[t.type]}`}
+      className="relative flex items-start gap-3 w-[360px] max-w-full pl-4 pr-3 py-3 rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--bg-overlay)] shadow-[var(--shadow-lg)] animate-slide-in-right overflow-hidden"
     >
-      <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />
-      <p className="flex-1 text-sm font-medium">{t.message}</p>
+      <span
+        aria-hidden="true"
+        className={`absolute left-0 top-0 bottom-0 w-[3px] ${barStyles[t.type]}`}
+      />
+      <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconStyles[t.type]}`} />
+      <p className="flex-1 text-[13px] font-medium text-[var(--text-primary)]">{t.message}</p>
       <button
         onClick={() => removeToast(t.id)}
-        className="p-0.5 rounded hover:bg-black/10 transition-colors"
+        className="p-1 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"
       >
         <X className="w-4 h-4" />
       </button>
@@ -101,7 +112,7 @@ export function ToastContainer() {
   const toasts = useToastStore((state) => state.toasts)
 
   return (
-    <div className="fixed top-4 right-4 z-[10000] flex flex-col gap-2 max-w-md">
+    <div className="fixed top-3 right-3 z-[10000] flex flex-col gap-2 max-w-md">
       {toasts.map((t) => (
         <ToastItem key={t.id} toast={t} />
       ))}

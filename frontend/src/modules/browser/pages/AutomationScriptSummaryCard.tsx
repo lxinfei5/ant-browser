@@ -42,9 +42,9 @@ export function AutomationScriptSummaryCard({
   const selectable = typeof onSelectedChange === "function";
   const isInterfaceModeCard = card.scriptType === "launch-api";
   const actionButtonClassName =
-    "!h-7 !w-full min-w-0 justify-center whitespace-nowrap !rounded-md !border !border-black !bg-black !px-2 !text-xs !font-medium !leading-none !text-white !shadow-none hover:!border-[#1f1f1f] hover:!bg-[#1f1f1f] focus-visible:!ring-black disabled:!border-[#6b7280] disabled:!bg-[#6b7280] disabled:!text-white";
+    "!h-7 !w-full min-w-0 justify-center whitespace-nowrap !rounded-[var(--radius-sm)] !px-2 !text-xs !font-semibold !leading-none !shadow-none disabled:!opacity-45";
   const headerCopyButtonClassName =
-    "!h-7 !w-full min-w-0 justify-center whitespace-nowrap !rounded-md !border !border-black !bg-white !px-2 !text-xs !font-medium !leading-none !text-black !shadow-none hover:!border-black hover:!bg-[#f3f4f6] hover:!text-black focus-visible:!ring-black disabled:!border-[#6b7280] disabled:!bg-white disabled:!text-[#6b7280]";
+    "!h-7 !w-full min-w-0 justify-center whitespace-nowrap !rounded-[var(--radius-sm)] !border !border-[var(--border-strong)] !bg-transparent !px-2 !text-xs !font-medium !leading-none !text-[var(--text-primary)] !shadow-none hover:!bg-[var(--bg-hover)] hover:!border-[var(--text-muted)] focus-visible:!ring-[color:var(--ring)] disabled:!opacity-45";
   const scriptButtonClassName =
     actionButtonClassName;
   const apiSetupButtonClassName =
@@ -119,7 +119,6 @@ export function AutomationScriptSummaryCard({
           type="button"
           size="sm"
           className={headerCopyButtonClassName}
-          style={{ border: "1px solid #000000", backgroundColor: "#ffffff", color: "#000000" }}
           onClick={(event) => {
             event.stopPropagation();
             void copyToClipboard(
@@ -134,7 +133,6 @@ export function AutomationScriptSummaryCard({
           type="button"
           size="sm"
           className={headerCopyButtonClassName}
-          style={{ border: "1px solid #000000", backgroundColor: "#ffffff", color: "#000000" }}
           onClick={(event) => {
             event.stopPropagation();
             void copyToClipboard(

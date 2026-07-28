@@ -1,4 +1,5 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CHART_COLOR } from '../chartColors';
 
 const data = [
   { name: '周一', 访问量: 4000, 用户数: 2400 },
@@ -43,7 +44,7 @@ export function LineChartExample() {
         <Line 
           type="monotone" 
           dataKey="用户数" 
-          stroke="#82ca9d" 
+          stroke={CHART_COLOR.success} 
           strokeWidth={2}
           activeDot={{ r: 6 }}
         />

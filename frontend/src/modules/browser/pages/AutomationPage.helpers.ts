@@ -41,12 +41,13 @@ export type AutomationCardPresentation = {
 };
 
 function getAutomationCardRailClass(seed: string): string {
+  // token 化软色对，确保深浅主题下都可读
   const palette = [
-    "bg-[#8aa0b3]",
-    "bg-[#8da79b]",
-    "bg-[#929ab1]",
-    "bg-[#aa9a8e]",
-    "bg-[#8b9a9c]",
+    "bg-[var(--accent)]",
+    "bg-[var(--info)]",
+    "bg-[var(--success)]",
+    "bg-[var(--warning)]",
+    "bg-[var(--text-muted)]",
   ];
 
   let hash = 0;

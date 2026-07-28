@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { ThemeType, DEFAULT_THEME } from './types'
+import { ThemeType, DEFAULT_THEME, normalizeTheme } from './types'
 
 interface ThemeContextValue {
   theme: ThemeType
@@ -17,12 +17,9 @@ interface ThemeProviderProps {
 
 export function ThemeProvider({ children, defaultTheme = DEFAULT_THEME }: ThemeProviderProps) {
   const [theme, setThemeState] = useState<ThemeType>(() => {
-    // 从 localStorage 读取保存的主题
-    const saved = localStorage.getItem(THEME_STORAGE_KEY)
-    if (saved && ['dark', 'light', 'cream', 'mint', 'ocean'].includes(saved)) {
-      return saved as ThemeType
-    }
-    return defaultTheme
+    // 从 localStorage 读取保存的主题（旧版 cream/mint/ocean 自动迁移）
+    const saved = normalizeTheme(localStorage.getItem(THEME_STORAGE_KEY))
+    return saved ?? defaultTheme
   })
 
   const setTheme = (newTheme: ThemeType) => {

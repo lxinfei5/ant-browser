@@ -22,18 +22,18 @@ function NotificationDropdown({
       case 'success': return <CheckCircle className="w-4 h-4 text-[var(--color-success)]" />
       case 'warning': return <AlertCircle className="w-4 h-4 text-[var(--color-warning)]" />
       case 'error': return <AlertCircle className="w-4 h-4 text-[var(--color-error)]" />
-      default: return <Info className="w-4 h-4 text-[var(--color-accent)]" />
+      default: return <Info className="w-4 h-4 text-[var(--info)]" />
     }
   }
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in">
+    <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-overlay)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] overflow-hidden z-50 animate-fade-in">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-[var(--color-border-muted)] flex items-center justify-between">
+      <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-[var(--color-text-primary)]">异常与通知</span>
+          <span className="text-sm font-semibold text-[var(--text-primary)]">异常与通知</span>
           {unreadCount > 0 && (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-[var(--color-accent)] text-white rounded-full">
+            <span className="px-1.5 py-0.5 text-[11px] font-semibold bg-[var(--danger-soft)] text-[var(--danger)] rounded-[var(--radius-sm)]">
               {unreadCount}
             </span>
           )}
@@ -71,8 +71,8 @@ function NotificationDropdown({
               key={notification.id}
               onClick={() => onMarkAsRead(notification.id)}
               className={clsx(
-                'px-4 py-3 border-b border-[var(--color-border-muted)] last:border-0 cursor-pointer transition-colors hover:bg-[var(--color-bg-muted)]',
-                !notification.read && 'bg-[var(--color-accent)]/5'
+                'px-4 py-3 border-b border-[var(--border-subtle)] last:border-0 cursor-pointer transition-colors hover:bg-[var(--bg-hover)]',
+                !notification.read && 'bg-[var(--accent-soft)]'
               )}
             >
               <div className="flex gap-3">
@@ -88,7 +88,7 @@ function NotificationDropdown({
                       {notification.title}
                     </p>
                     {!notification.read && (
-                      <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] shrink-0 mt-1.5" />
+                      <span className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0 mt-1.5" />
                     )}
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5 line-clamp-2">
@@ -106,8 +106,8 @@ function NotificationDropdown({
 
       {/* Footer */}
       {notifications.length > 0 && (
-        <div className="px-4 py-2 border-t border-[var(--color-border-muted)] bg-[var(--color-bg-muted)]/50">
-          <button className="w-full text-xs text-center text-[var(--color-accent)] hover:underline">
+        <div className="px-4 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-hover)]/50">
+          <button className="w-full text-xs text-center text-[var(--accent)] hover:underline">
             查看全部通知
           </button>
         </div>
@@ -135,7 +135,7 @@ export function Topbar() {
   }, [])
 
   return (
-    <header className="h-14 bg-[var(--color-bg-surface)] border-b border-[var(--color-border-default)] px-4 flex items-center justify-between gap-4">
+    <header className="h-14 bg-[var(--color-bg-surface)] border-b border-[var(--border-subtle)] px-4 flex items-center justify-between gap-4">
       <div className="flex-1" />
 
       {/* 右侧操作 */}
@@ -145,16 +145,16 @@ export function Topbar() {
           <button
             onClick={() => setShowNotifications(!showNotifications)}
             className={clsx(
-              'relative w-8 h-8 flex items-center justify-center rounded-md transition-colors duration-150',
+              'relative w-8 h-8 flex items-center justify-center rounded-[var(--radius-md)] transition-colors duration-150',
               showNotifications
-                ? 'text-[var(--color-accent)] bg-[var(--color-accent-muted)]'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-muted)]'
+                ? 'text-[var(--accent)] bg-[var(--accent-soft)]'
+                : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'
             )}
             title="通知"
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-4 h-4" strokeWidth={1.75} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[10px] font-medium bg-[var(--color-error)] text-white rounded-full flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[10px] font-medium bg-[var(--danger)] text-[var(--text-inverse)] rounded-full flex items-center justify-center">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -175,22 +175,22 @@ export function Topbar() {
 
         <Link
           to="/settings"
-          className="w-8 h-8 flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-muted)] rounded-md transition-colors duration-150"
+          className="w-8 h-8 flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] rounded-[var(--radius-md)] transition-colors duration-150"
           title="设置"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="w-4 h-4" strokeWidth={1.75} />
         </Link>
 
-        <div className="w-px h-5 bg-[var(--color-border-default)] mx-1.5" />
+        <div className="w-px h-5 bg-[var(--border-subtle)] mx-1.5" />
 
         <Link
           to="/profile"
-          className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-md hover:bg-[var(--color-accent-muted)] transition-colors duration-150"
+          className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-[var(--radius-md)] hover:bg-[var(--bg-hover)] transition-colors duration-150"
         >
-          <div className="w-7 h-7 bg-[var(--color-accent)] rounded-md flex items-center justify-center">
-            <User className="w-3.5 h-3.5 text-[var(--color-text-inverse)]" />
+          <div className="w-7 h-7 bg-[var(--accent-soft)] rounded-[var(--radius-md)] flex items-center justify-center">
+            <User className="w-3.5 h-3.5 text-[var(--accent)]" strokeWidth={1.75} />
           </div>
-          <span className="text-sm font-medium text-[var(--color-text-secondary)]">Admin</span>
+          <span className="text-[13px] font-medium text-[var(--text-secondary)]">Admin</span>
         </Link>
       </div>
     </header>

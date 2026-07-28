@@ -110,11 +110,11 @@ export function Table<T extends Record<string, any>>({
               <th
                 key={col.key}
                 className={clsx(
-                  'px-4 py-3 text-xs font-semibold text-[var(--color-text-muted)] uppercase tracking-wider bg-[var(--color-bg-muted)]',
+                  'px-4 py-3 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.06em] bg-[var(--bg-base)] border-b border-[var(--border-subtle)]',
                   col.align === 'center' && 'text-center',
                   col.align === 'right' && 'text-right',
                   !col.align && 'text-left',
-                  col.sortable && 'cursor-pointer group hover:text-[var(--color-text-primary)]'
+                  col.sortable && 'cursor-pointer group hover:text-[var(--text-primary)]'
                 )}
                 style={{ width: col.width }}
                 onClick={() => col.sortable && handleSortClick(col)}
@@ -127,7 +127,7 @@ export function Table<T extends Record<string, any>>({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-[var(--color-border-muted)] bg-[var(--color-bg-surface)]">
+        <tbody className="divide-y divide-[var(--border-subtle)] bg-[var(--color-bg-card)]">
           {data.length === 0 ? (
             <tr>
               <td colSpan={columns.length} className="px-4 py-16 text-center">
@@ -146,7 +146,7 @@ export function Table<T extends Record<string, any>>({
               <tr
                 key={getRowKey(record, index)}
                 className={clsx(
-                  'hover:bg-[var(--color-bg-muted)]/50 transition-colors duration-150',
+                  'h-11 hover:bg-[var(--bg-hover)] transition-colors duration-150',
                   onRowClick && 'cursor-pointer'
                 )}
                 onClick={() => onRowClick?.(record)}
@@ -155,7 +155,7 @@ export function Table<T extends Record<string, any>>({
                   <td
                     key={col.key}
                     className={clsx(
-                      'px-4 py-3.5 text-sm text-[var(--color-text-secondary)]',
+                      'px-4 py-3 text-[13px] text-[var(--text-secondary)]',
                       col.align === 'center' && 'text-center',
                       col.align === 'right' && 'text-right'
                     )}

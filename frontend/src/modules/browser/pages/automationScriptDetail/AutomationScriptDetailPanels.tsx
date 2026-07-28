@@ -112,11 +112,11 @@ export function AutomationScriptDetailPanels({
   onOpenParamsHelp,
 }: AutomationScriptDetailPanelsProps) {
   const headerRunButtonClassName =
-    "!h-8 !shrink-0 !whitespace-nowrap !border !px-3 hover:!opacity-90";
+    "!h-8 !shrink-0 !whitespace-nowrap !px-3";
 
   return (
     <div className="space-y-5 animate-fade-in">
-      <section className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 shadow-[var(--shadow-sm)]">
+      <section className="rounded-[var(--radius-lg)] border border-[var(--border-subtle)] bg-[var(--color-bg-card)] px-4 py-3">
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" size="sm" onClick={onLeavePage}>
             <ArrowLeft className="h-4 w-4" />
@@ -146,12 +146,7 @@ export function AutomationScriptDetailPanels({
             size="sm"
             onClick={onOpenRunModal}
             disabled={busyAction !== "none"}
-            className={`${headerRunButtonClassName} hover:!border-[var(--color-accent-hover)] hover:!bg-[var(--color-accent-hover)] focus-visible:!ring-[var(--color-accent)]`}
-            style={{
-              backgroundColor: "var(--color-accent)",
-              borderColor: "var(--color-accent)",
-              color: "var(--color-text-inverse)",
-            }}
+            className={headerRunButtonClassName}
           >
             <Play className="h-4 w-4" />
             执行脚本
@@ -165,12 +160,7 @@ export function AutomationScriptDetailPanels({
                 : onOpenPublicApiManager
             }
             disabled={busyAction !== "none"}
-            className={`${headerRunButtonClassName} hover:!border-[var(--color-accent-hover)] hover:!bg-[var(--color-accent-hover)] focus-visible:!ring-[var(--color-accent)]`}
-            style={{
-              backgroundColor: "var(--color-accent)",
-              borderColor: "var(--color-accent)",
-              color: "var(--color-text-inverse)",
-            }}
+            className={headerRunButtonClassName}
           >
             <Link className="h-4 w-4" />
             {resolvedPublicAPI.enabled ? "执行接口" : "配置接口"}
@@ -181,12 +171,7 @@ export function AutomationScriptDetailPanels({
             onClick={onOpenExportModal}
             loading={busyAction === "export"}
             disabled={busyAction !== "none" && busyAction !== "export"}
-            className={`${headerRunButtonClassName} hover:!border-black hover:!bg-black focus-visible:!ring-black`}
-            style={{
-              backgroundColor: "#000000",
-              borderColor: "#000000",
-              color: "#ffffff",
-            }}
+            className={headerRunButtonClassName}
           >
             <Download className="h-4 w-4" />
             导出

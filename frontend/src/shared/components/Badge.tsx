@@ -14,25 +14,25 @@ interface BadgeProps {
 }
 
 const variantStyles = {
-  default: 'bg-[var(--color-bg-muted)] text-[var(--color-text-secondary)]',
-  success: 'bg-[var(--color-success)]/15 text-[var(--color-success)]',
-  error: 'bg-[var(--color-error)]/15 text-[var(--color-error)]',
-  warning: 'bg-[var(--color-warning)]/15 text-[var(--color-warning)]',
-  info: 'bg-[var(--color-accent)]/15 text-[var(--color-accent)]',
+  default: 'bg-[var(--bg-hover)] text-[var(--text-secondary)] border border-[var(--border-subtle)]',
+  success: 'bg-[var(--success-soft)] text-[var(--success)]',
+  error: 'bg-[var(--danger-soft)] text-[var(--danger)]',
+  warning: 'bg-[var(--warning-soft)] text-[var(--warning)]',
+  info: 'bg-[var(--info-soft)] text-[var(--info)]',
 }
 
 const sizeStyles = {
-  sm: 'px-1.5 py-0.5 text-xs',
-  md: 'px-2 py-1 text-xs',
-  lg: 'px-2.5 py-1 text-sm',
+  sm: 'px-1.5 py-0.5 text-[11px]',
+  md: 'px-2 py-0.5 text-[11px]',
+  lg: 'px-2.5 py-1 text-xs',
 }
 
 const dotStyles = {
-  default: 'bg-[var(--color-text-muted)]',
-  success: 'bg-[var(--color-success)]',
-  error: 'bg-[var(--color-error)]',
-  warning: 'bg-[var(--color-warning)]',
-  info: 'bg-[var(--color-accent)]',
+  default: 'bg-[var(--text-muted)]',
+  success: 'bg-[var(--success)]',
+  error: 'bg-[var(--danger)]',
+  warning: 'bg-[var(--warning)]',
+  info: 'bg-[var(--info)]',
 }
 
 export function Badge({
@@ -46,7 +46,7 @@ export function Badge({
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1.5 rounded-full font-medium',
+        'inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] font-semibold',
         variantStyles[variant],
         sizeStyles[size],
         className

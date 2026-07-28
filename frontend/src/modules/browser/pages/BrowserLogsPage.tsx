@@ -163,7 +163,7 @@ export function BrowserLogsPage() {
               onClick={() => setLevelFilter(l)}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 levelFilter === l
-                  ? 'bg-[var(--color-accent)] text-white'
+                  ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
                   : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
               }`}
             >
@@ -183,7 +183,7 @@ export function BrowserLogsPage() {
               onClick={() => setQuickFilter(value)}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 quickFilter === value
-                  ? 'bg-[var(--color-text-primary)] text-white'
+                  ? 'bg-[var(--text-primary)] text-[var(--text-inverse)]'
                   : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
               }`}
             >

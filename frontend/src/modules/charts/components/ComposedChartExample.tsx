@@ -1,4 +1,5 @@
 import { ComposedChart, Line, Area, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CHART_COLOR } from '../chartColors';
 
 const data = [
   { name: 'Q1', 收入: 800, 支出: 300, 利润: 500, 增长率: 20 },
@@ -44,8 +45,8 @@ export function ComposedChartExample() {
         <Area 
           yAxisId="left" 
           dataKey="利润" 
-          fill="#8884d8" 
-          stroke="#8884d8"
+          fill={CHART_COLOR.info} 
+          stroke={CHART_COLOR.info}
           fillOpacity={0.3} 
         />
         <Bar 
@@ -59,14 +60,14 @@ export function ComposedChartExample() {
           yAxisId="left" 
           dataKey="支出" 
           barSize={20} 
-          fill="#82ca9d" 
+          fill={CHART_COLOR.success} 
           radius={[4, 4, 0, 0]}
         />
         <Line 
           yAxisId="right" 
           dataKey="增长率" 
           type="monotone" 
-          stroke="#ff7300"
+          stroke={CHART_COLOR.warning}
           strokeWidth={2}
           activeDot={{ r: 6 }} 
         />

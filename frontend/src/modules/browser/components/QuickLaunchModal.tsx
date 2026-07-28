@@ -295,14 +295,14 @@ export function QuickLaunchModal({ open, onClose }: QuickLaunchModalProps) {
     <Modal open={open} onClose={onClose} title="快速启动浏览器" width="1120px">
       <div className="space-y-4" onKeyDown={onPanelKeyDown}>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-[minmax(300px,420px)_1fr] lg:items-center">
-          <div className="flex items-center gap-2 rounded-lg border border-[var(--color-border-default)] px-3 bg-[var(--color-bg-surface)]">
+          <div className="flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border-strong)] px-3 bg-[var(--color-bg-input)] focus-within:border-[var(--accent)]">
             <Search className="w-4 h-4 text-[var(--color-text-muted)]" />
             <input
               ref={inputRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="输入 Code 或实例名 / 标签 / 关键字"
-              className="h-9 w-full border-0 bg-transparent text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none px-0"
+              className="h-10 w-full border-0 bg-transparent text-[13px] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none px-0"
             />
             <Button
               size="sm"
@@ -326,7 +326,7 @@ export function QuickLaunchModal({ open, onClose }: QuickLaunchModalProps) {
                 className={[
                   'shrink-0 px-3 py-1.5 rounded-md text-xs transition-colors',
                   groupFilter === GROUP_ALL
-                    ? 'bg-[var(--color-accent)] text-[var(--color-text-inverse)]'
+                    ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
                     : 'text-[var(--color-text-secondary)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-text-primary)]',
                 ].join(' ')}
               >
@@ -343,7 +343,7 @@ export function QuickLaunchModal({ open, onClose }: QuickLaunchModalProps) {
                   className={[
                     'shrink-0 px-3 py-1.5 rounded-md text-xs transition-colors',
                     groupFilter === option.id
-                      ? 'bg-[var(--color-accent)] text-[var(--color-text-inverse)]'
+                      ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
                       : 'text-[var(--color-text-secondary)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-text-primary)]',
                   ].join(' ')}
                 >
@@ -369,7 +369,7 @@ export function QuickLaunchModal({ open, onClose }: QuickLaunchModalProps) {
                     className={[
                       'w-full flex items-center justify-between rounded-md px-2.5 py-2 text-left transition-colors',
                       activeTag === section.tag
-                        ? 'bg-[var(--color-accent)] text-[var(--color-text-inverse)]'
+                        ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
                         : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-text-primary)]',
                     ].join(' ')}
                   >

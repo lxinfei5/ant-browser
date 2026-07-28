@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CHART_COLORS } from '../chartColors';
 
 const data = [
   { name: '分类A', value: 400 },
@@ -8,7 +9,7 @@ const data = [
   { name: '分类E', value: 100 },
 ];
 
-const COLORS = ['#8884d8', '#83a6ed', '#8dd1e1', '#82ca9d', '#a4de6c'];
+const COLORS = CHART_COLORS;
 
 export function PieChartExample() {
   return (
@@ -20,7 +21,7 @@ export function PieChartExample() {
           cy="50%"
           labelLine={true}
           outerRadius={80}
-          fill="#8884d8"
+          fill={CHART_COLORS[0]}
           dataKey="value"
           label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
         >

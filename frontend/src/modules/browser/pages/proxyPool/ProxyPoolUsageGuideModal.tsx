@@ -87,12 +87,12 @@ export function ProxyPoolUsageGuideModal({ open, onClose }: ProxyPoolUsageGuideM
                 type="button"
                 onClick={() => setActiveTab(tab.value)}
                 className={active
-                  ? 'rounded-xl bg-[var(--color-text-primary)] px-4 py-3 text-left text-white shadow-sm'
+                  ? 'rounded-xl bg-[var(--color-text-primary)] px-4 py-3 text-left text-[var(--text-inverse)] shadow-sm'
                   : 'rounded-xl px-4 py-3 text-left text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-primary)] hover:text-[var(--color-text-primary)]'
                 }
               >
                 <span className="block text-sm font-semibold">{tab.label}</span>
-                <span className={active ? 'mt-1 block text-xs text-white/75' : 'mt-1 block text-xs text-[var(--color-text-muted)]'}>{tab.hint}</span>
+                <span className={active ? 'mt-1 block text-xs text-[var(--text-inverse)] opacity-75' : 'mt-1 block text-xs text-[var(--color-text-muted)]'}>{tab.hint}</span>
               </button>
             )
           })}
@@ -185,7 +185,7 @@ function IPFLYGuide() {
               type="button"
               onClick={() => setActiveDetailTab(tab.value)}
               className={active
-                ? 'rounded-full bg-[var(--color-text-primary)] px-3 py-1.5 text-left text-white shadow-sm'
+                ? 'rounded-full bg-[var(--color-text-primary)] px-3 py-1.5 text-left text-[var(--text-inverse)] shadow-sm'
                 : 'rounded-full border border-[var(--color-border-muted)] bg-[var(--color-bg-primary)] px-3 py-1.5 text-left text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
               }
             >

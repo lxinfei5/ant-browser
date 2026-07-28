@@ -166,7 +166,7 @@ export function AutomationInstanceSelector({
                 type="button"
                 className={`min-w-[78px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
                   mode === item
-                    ? "border border-[var(--color-border-strong)] bg-black text-white"
+                    ? "border border-[var(--color-border-strong)] bg-[var(--text-primary)] text-[var(--text-inverse)]"
                     : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-muted)] hover:text-[var(--color-text-primary)]"
                 }`}
                 onClick={() => onModeChange?.(item)}

@@ -23,9 +23,7 @@ import {
 import clsx from "clsx";
 import { useLayoutStore } from "../../store/layoutStore";
 import { projectConfig, navigationConfig } from "../../config";
-
-// 导入应用logo
-import logoImage from "../../resources/images/logo.png";
+import { Logo } from "../components";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -57,54 +55,26 @@ export function Sidebar() {
   return (
     <aside
       className={clsx(
-        "bg-[var(--color-bg-surface)] flex flex-col transition-all duration-300 border-r border-[var(--color-border-default)]",
+        "bg-[var(--color-bg-surface)] flex flex-col transition-all duration-300 border-r border-[var(--border-subtle)]",
         sidebarCollapsed ? "w-16" : "w-60",
       )}
     >
       {/* Logo */}
       <div
         className={clsx(
-          "h-14 flex items-center border-b border-[var(--color-border-muted)]",
+          "h-14 flex items-center border-b border-[var(--border-subtle)]",
           sidebarCollapsed ? "justify-center px-2" : "px-5",
         )}
       >
         {!sidebarCollapsed ? (
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full overflow-hidden flex-shrink-0 bg-[var(--color-accent)] flex items-center justify-center">
-              <img
-                src={logoImage}
-                alt="应用Logo"
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  // 图片加载失败时显示首字母
-                  e.currentTarget.style.display = "none";
-                  e.currentTarget.parentElement?.classList.add("fallback-logo");
-                }}
-              />
-              <span className="text-xs font-bold text-[var(--color-text-inverse)] hidden fallback-content">
-                {projectConfig.shortName.charAt(0)}
-              </span>
-            </div>
-            <h2 className="text-base font-semibold text-[var(--color-text-primary)] tracking-tight truncate">
+          <div className="flex items-center gap-2.5">
+            <Logo size={24} className="flex-shrink-0" />
+            <h2 className="text-[17px] font-semibold text-[var(--text-primary)] tracking-tight truncate">
               {projectConfig.name}
             </h2>
           </div>
         ) : (
-          <div className="w-8 h-8 rounded-full overflow-hidden bg-[var(--color-accent)] flex items-center justify-center">
-            <img
-              src={logoImage}
-              alt="应用Logo"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                // 图片加载失败时显示首字母
-                e.currentTarget.style.display = "none";
-                e.currentTarget.parentElement?.classList.add("fallback-logo");
-              }}
-            />
-            <span className="text-xs font-bold text-[var(--color-text-inverse)] hidden fallback-content">
-              {projectConfig.shortName.charAt(0)}
-            </span>
-          </div>
+          <Logo size={28} className="flex-shrink-0" />
         )}
       </div>
 
@@ -113,7 +83,7 @@ export function Sidebar() {
         {navigationConfig.map((section) => (
           <div key={section.title}>
             {!sidebarCollapsed && (
-              <h3 className="px-3 mb-2 text-[10px] font-semibold text-[var(--color-text-muted)] uppercase tracking-widest">
+              <h3 className="px-3 mb-2 mt-3 first:mt-0 text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.06em]">
                 {section.title}
               </h3>
             )}
@@ -131,18 +101,27 @@ export function Sidebar() {
                     to={item.path}
                     title={sidebarCollapsed ? item.name : undefined}
                     className={clsx(
-                      "flex items-center rounded-lg transition-all duration-150",
+                      "relative flex items-center rounded-[var(--radius-md)] transition-all duration-150",
                       isActive
-                        ? "bg-[var(--color-accent)] text-[var(--color-text-inverse)] shadow-sm"
-                        : "text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-text-primary)]",
+                        ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                        : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]",
                       sidebarCollapsed
                         ? "justify-center w-10 h-10 mx-auto"
-                        : "px-3 py-2.5 gap-3",
+                        : "h-[34px] px-3 gap-2",
                     )}
                   >
-                    <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                    {isActive && !sidebarCollapsed && (
+                      <span
+                        aria-hidden="true"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-[18px] w-0.5 rounded-full bg-[var(--accent)]"
+                      />
+                    )}
+                    <Icon
+                      className="w-4 h-4 flex-shrink-0"
+                      strokeWidth={1.75}
+                    />
                     {!sidebarCollapsed && (
-                      <span className="text-sm font-medium truncate">
+                      <span className="text-[13px] truncate">
                         {item.name}
                       </span>
                     )}
@@ -155,23 +134,23 @@ export function Sidebar() {
       </nav>
 
       {/* Toggle Button */}
-      <div className="p-3 border-t border-[var(--color-border-muted)]">
+      <div className="p-3 border-t border-[var(--border-subtle)]">
         <button
           onClick={toggleSidebar}
           className={clsx(
-            "flex items-center rounded-lg text-[var(--color-text-muted)] hover:bg-[var(--color-accent-muted)] hover:text-[var(--color-text-secondary)] transition-all duration-150",
+            "flex items-center rounded-[var(--radius-md)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-all duration-150",
             sidebarCollapsed
               ? "justify-center w-10 h-10 mx-auto"
-              : "w-full px-3 py-2 gap-3",
+              : "w-full h-[34px] px-3 gap-2",
           )}
           title={sidebarCollapsed ? "展开" : "收起"}
         >
           {sidebarCollapsed ? (
-            <ChevronRight className="w-[18px] h-[18px]" />
+            <ChevronRight className="w-4 h-4" strokeWidth={1.75} />
           ) : (
             <>
-              <ChevronLeft className="w-[18px] h-[18px]" />
-              <span className="text-sm">收起侧边栏</span>
+              <ChevronLeft className="w-4 h-4" strokeWidth={1.75} />
+              <span className="text-[13px]">收起侧边栏</span>
             </>
           )}
         </button>

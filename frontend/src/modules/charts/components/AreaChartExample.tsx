@@ -1,4 +1,5 @@
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CHART_COLOR } from '../chartColors';
 
 const data = [
   { name: '周一', 系统A: 4000, 系统B: 2400, 系统C: 1800 },
@@ -39,24 +40,24 @@ export function AreaChartExample() {
           type="monotone" 
           dataKey="系统A" 
           stackId="1"
-          stroke="#8884d8" 
-          fill="#8884d8"
+          stroke={CHART_COLOR.accent} 
+          fill={CHART_COLOR.accent}
           fillOpacity={0.6}
         />
         <Area 
           type="monotone" 
           dataKey="系统B" 
           stackId="1"
-          stroke="#82ca9d" 
-          fill="#82ca9d"
+          stroke={CHART_COLOR.success} 
+          fill={CHART_COLOR.success}
           fillOpacity={0.6}
         />
         <Area 
           type="monotone" 
           dataKey="系统C" 
           stackId="1"
-          stroke="#ffc658" 
-          fill="#ffc658"
+          stroke={CHART_COLOR.warning} 
+          fill={CHART_COLOR.warning}
           fillOpacity={0.6}
         />
       </AreaChart>

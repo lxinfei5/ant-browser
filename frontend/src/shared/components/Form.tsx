@@ -46,14 +46,15 @@ export function Input({ error, className, ...props }: InputProps) {
   return (
     <input
       className={clsx(
-        'block h-9 px-3 text-sm',
-        'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
-        'border border-[var(--color-border-default)] rounded-lg',
-        'placeholder:text-[var(--color-text-muted)]',
-        'focus:outline-none focus:border-[var(--color-border-strong)] focus:ring-1 focus:ring-[var(--color-border-strong)]',
-        'disabled:bg-[var(--color-bg-muted)] disabled:text-[var(--color-text-muted)] disabled:cursor-not-allowed',
+        'block h-[34px] px-3 text-[13px]',
+        'bg-[var(--color-bg-input)] text-[var(--color-text-primary)]',
+        'border border-[var(--border-strong)] rounded-[var(--radius-md)]',
+        'placeholder:text-[var(--text-muted)]',
+        'hover:border-[var(--text-muted)]',
+        'focus:outline-none focus:border-[var(--accent)] focus:ring-[3px] focus:ring-[color:var(--ring)]',
+        'disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed',
         'transition-colors duration-150',
-        error && 'border-[var(--color-error)] focus:border-[var(--color-error)] focus:ring-[var(--color-error)]',
+        error && 'border-[var(--danger)] focus:border-[var(--danger)] focus:ring-[color:var(--danger-soft)]',
         // 默认宽度自适应，可通过 className 覆盖
         !className?.includes('w-') && 'w-full',
         className
@@ -72,16 +73,15 @@ export function Select({ error, options, className, style, ...props }: SelectPro
   return (
     <select
       className={clsx(
-        'block h-9 appearance-none px-3 pr-10 text-sm',
-        'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
-        'border border-[var(--color-border-default)] rounded-lg',
-        'shadow-[var(--shadow-xs)]',
-        'hover:border-[var(--color-border-strong)]',
-        'focus:outline-none focus:border-[var(--color-border-strong)] focus:ring-1 focus:ring-[var(--color-border-strong)]',
-        'disabled:bg-[var(--color-bg-muted)] disabled:text-[var(--color-text-muted)] disabled:cursor-not-allowed',
+        'block h-[34px] appearance-none px-3 pr-10 text-[13px]',
+        'bg-[var(--color-bg-input)] text-[var(--color-text-primary)]',
+        'border border-[var(--border-strong)] rounded-[var(--radius-md)]',
+        'hover:border-[var(--text-muted)]',
+        'focus:outline-none focus:border-[var(--accent)] focus:ring-[3px] focus:ring-[color:var(--ring)]',
+        'disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed',
         'transition-colors duration-150',
         'cursor-pointer',
-        error && 'border-[var(--color-error)] focus:border-[var(--color-error)] focus:ring-[var(--color-error)]',
+        error && 'border-[var(--danger)] focus:border-[var(--danger)] focus:ring-[color:var(--danger-soft)]',
         // 默认宽度自适应，可通过 className 覆盖
         !className?.includes('w-') && 'w-full',
         className
@@ -112,14 +112,15 @@ export function Textarea({ error, className, ...props }: TextareaProps) {
   return (
     <textarea
       className={clsx(
-        'block w-full px-3 py-2 text-sm',
-        'bg-[var(--color-bg-surface)] text-[var(--color-text-primary)]',
-        'border border-[var(--color-border-default)] rounded-lg',
-        'placeholder:text-[var(--color-text-muted)]',
-        'focus:outline-none focus:border-[var(--color-border-strong)] focus:ring-1 focus:ring-[var(--color-border-strong)]',
-        'disabled:bg-[var(--color-bg-muted)] disabled:text-[var(--color-text-muted)] disabled:cursor-not-allowed',
+        'block w-full px-3 py-2 text-[13px]',
+        'bg-[var(--color-bg-input)] text-[var(--color-text-primary)]',
+        'border border-[var(--border-strong)] rounded-[var(--radius-md)]',
+        'placeholder:text-[var(--text-muted)]',
+        'hover:border-[var(--text-muted)]',
+        'focus:outline-none focus:border-[var(--accent)] focus:ring-[3px] focus:ring-[color:var(--ring)]',
+        'disabled:bg-[var(--bg-hover)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed',
         'transition-colors duration-150 resize-none',
-        error && 'border-[var(--color-error)] focus:border-[var(--color-error)] focus:ring-[var(--color-error)]',
+        error && 'border-[var(--danger)] focus:border-[var(--danger)] focus:ring-[color:var(--danger-soft)]',
         className
       )}
       {...props}
@@ -143,8 +144,8 @@ export function Switch({ checked, onChange, disabled }: SwitchProps) {
       onClick={() => onChange(!checked)}
       className={clsx(
         'relative inline-flex h-5 w-9 items-center rounded-full transition-colors duration-150',
-        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2',
-        checked ? 'bg-[var(--color-accent)]' : 'bg-[var(--color-border-strong)]',
+        'focus:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--bg-base)]',
+        checked ? 'bg-[var(--accent)]' : 'bg-[var(--border-strong)]',
         disabled && 'opacity-50 cursor-not-allowed'
       )}
     >

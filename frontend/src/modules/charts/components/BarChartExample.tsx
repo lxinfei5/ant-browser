@@ -1,4 +1,5 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CHART_COLOR } from '../chartColors';
 
 const data = [
   { name: '1月', 产品A: 4000, 产品B: 2400 },
@@ -36,7 +37,7 @@ export function BarChartExample() {
           wrapperStyle={{ color: 'var(--color-text-primary)' }}
         />
         <Bar dataKey="产品A" fill="var(--color-accent)" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="产品B" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="产品B" fill={CHART_COLOR.success} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

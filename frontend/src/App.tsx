@@ -204,8 +204,8 @@ function CloseConfirmModal() {
         <div
           className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
             importInProgress
-              ? "bg-amber-50 text-amber-500"
-              : "bg-red-50 text-red-500"
+              ? "bg-[var(--warning-soft)] text-[var(--warning)]"
+              : "bg-[var(--danger-soft)] text-[var(--danger)]"
           }`}
         >
           <AlertCircle className="w-6 h-6" />
@@ -254,7 +254,7 @@ function CloseConfirmModal() {
             <>
               <Button
                 variant="secondary"
-                className="w-full !bg-[#f3f4f6] !border-[#e5e7eb] !text-[var(--color-text-primary)] hover:!bg-[#e5e7eb]"
+                className="w-full"
                 onClick={supportsTray ? handleMinimize : closeModal}
                 disabled={quitting}
               >
@@ -269,7 +269,7 @@ function CloseConfirmModal() {
                 仅退出应用
               </Button>
               <Button
-                variant="danger"
+                variant="danger-filled"
                 className="w-full"
                 onClick={handleQuitAppAndBrowsers}
                 loading={quittingAction === "app-and-browser"}
