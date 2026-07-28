@@ -1,8 +1,8 @@
 package backend
 
 import (
-	"ant-chrome/backend/internal/apppath"
 	"ant-chrome/backend/internal/accountpool"
+	"ant-chrome/backend/internal/apppath"
 	"ant-chrome/backend/internal/automation"
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/config"
@@ -226,8 +226,8 @@ func (a *App) startupInitSpeedScheduler() {
 			r := a.testProxySpeedWithConnector(proxyId, a.getLatestProxies(), connectorType)
 			return r.Ok, r.LatencyMs, r.Error
 		},
-		5*time.Minute,
-		5,
+		browser.DefaultProxySpeedInterval,
+		browser.DefaultProxySpeedConcurrency,
 	)
 	a.speedScheduler.Start()
 }

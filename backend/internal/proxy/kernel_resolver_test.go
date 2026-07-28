@@ -20,6 +20,7 @@ func TestResolveProxyKernelDefaultPriority(t *testing.T) {
 		{name: "socks5 without auth uses native", proxy: "socks5://127.0.0.1:1080", wantKernel: ProxyKernelNative},
 		{name: "socks5 with auth uses xray", proxy: "socks5://user:pass@127.0.0.1:1080", wantKernel: ProxyKernelXray},
 		{name: "http with auth uses xray", proxy: "http://user:pass@127.0.0.1:8080", wantKernel: ProxyKernelXray},
+		{name: "https with auth uses xray", proxy: "https://user:pass@127.0.0.1:8443", wantKernel: ProxyKernelXray},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

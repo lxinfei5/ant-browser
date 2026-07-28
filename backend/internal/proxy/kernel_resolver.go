@@ -127,11 +127,16 @@ func SupportedKernelsForProtocol(protocol string, proxyConfig string, proxies []
 			return []string{ProxyKernelXray, ProxyKernelMihomo}
 		}
 		return []string{ProxyKernelNative}
-	case "vmess", "vless", "trojan", "ss", "shadowsocks", "chain+socks5":
+	case "vmess", "vless", "trojan", "chain+socks5":
+		return []string{ProxyKernelXray, ProxyKernelMihomo}
+	case "ss", "shadowsocks":
+		if IsMihomoOnlyProtocol(proxyConfig) {
+			return []string{ProxyKernelMihomo}
+		}
 		return []string{ProxyKernelXray, ProxyKernelMihomo}
 	case "hysteria", "hysteria2", "tuic", "anytls":
 		return []string{ProxyKernelSingBox, ProxyKernelMihomo}
-	case "mieru":
+	case "mieru", "wireguard":
 		return []string{ProxyKernelMihomo}
 	default:
 		if RequiresLocalProxyBridgeForBrowser(proxyConfig) || RequiresBridge(proxyConfig, proxies, proxyId) {

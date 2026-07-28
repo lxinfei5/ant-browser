@@ -28,6 +28,7 @@ type browserStartPlan struct {
 	args                 []string
 	extensionDirs        []string
 	deferredStartTargets []string
+	deferredStartNewTabs bool
 	effectiveProxy       string
 	acquiredProxyBridge  profileProxyBridgeRef
 	releaseProxyBridge   bool
@@ -101,7 +102,9 @@ func (a *App) resolveBrowserStartProfile(input browserStartInput) (*BrowserProfi
 		return profile, true, nil
 	}
 
-	if err := a.openBrowserTabForRunningProfile(profile, input.ExtraLaunchArgs, input.StartURLs); err != nil {
+	fingerprintExpectedArgs := a.fingerprintCheckExpectedArgsForRunningProfile(profile, input.ExtraLaunchArgs)
+	resolvedStartURLs := a.resolveFingerprintCheckStartURLsForExpectedArgsAndProfile(profile.ProfileId, fingerprintExpectedArgs, profile, input.StartURLs)
+	if err := a.openBrowserTabForRunningProfile(profile, input.ExtraLaunchArgs, resolvedStartURLs); err != nil {
 		startErr := fmt.Errorf("实例已在运行，但新标签打开失败：%w", err)
 		log.Error("运行中实例新标签打开失败",
 			logger.F("profile_id", input.ProfileID),
@@ -122,7 +125,7 @@ func (a *App) resolveBrowserStartProfile(input browserStartInput) (*BrowserProfi
 
 func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserProfile) (*browserStartPlan, error) {
 	bookmarks := a.BookmarkList()
-	sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, chromeBinaryPath, userDataDir, err := a.prepareBrowserLaunchContext(input, profile, bookmarks)
+	sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, fingerprintLaunchArgs, chromeBinaryPath, userDataDir, err := a.prepareBrowserLaunchContext(input, profile, bookmarks)
 	if err != nil {
 		return nil, err
 	}
@@ -135,11 +138,13 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 	startReadyTimeout, startStableWindow := a.browserStartTimingSettings()
 	maxStartAttempts := browserStartAttemptCount()
 	totalReadyTimeout := time.Duration(maxStartAttempts) * startReadyTimeout
-	restoreLastSession := browserRestoreLastSession(a.config)
+	restoreLastSession := profileRestoreLastSession(profile, a.config)
 	extensionDirs := a.browserMgr.EnabledExtensionDirsForProfile(input.ProfileID)
-	defaultStartURLs := mergeStartURLs(browserDefaultStartURLs(a.config), bookmarkStartURLs(bookmarks))
-	launchTargets, deferredStartTargets := buildBrowserLaunchTargets(
-		input.StartURLs,
+	fingerprintExpectedArgs := combineFingerprintExpectedArgs(fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs)
+	defaultStartURLs := a.resolveFingerprintCheckStartURLsForExpectedArgsAndProfile(profile.ProfileId, fingerprintExpectedArgs, profile, mergeStartURLs(browserDefaultStartURLs(a.config), bookmarkStartURLs(bookmarks)))
+	startURLs := a.resolveFingerprintCheckStartURLsForExpectedArgsAndProfile(profile.ProfileId, fingerprintExpectedArgs, profile, input.StartURLs)
+	launchTargets, deferredStartTargets, deferredStartNewTabs := buildBrowserLaunchTargets(
+		startURLs,
 		defaultStartURLs,
 		input.SkipDefaultStartURLs,
 		restoreLastSession,
@@ -163,8 +168,9 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		chromeBinaryPath:     chromeBinaryPath,
 		userDataDir:          userDataDir,
 		extensionDirs:        extensionDirs,
-		args:                 buildBrowserLaunchArgs(profile, userDataDir, assignedDebugPort, effectiveProxy, extensionDirs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, launchTargets),
+		args:                 buildBrowserLaunchArgs(userDataDir, assignedDebugPort, effectiveProxy, extensionDirs, fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, launchTargets, restoreLastSession),
 		deferredStartTargets: deferredStartTargets,
+		deferredStartNewTabs: deferredStartNewTabs,
 		effectiveProxy:       effectiveProxy,
 		acquiredProxyBridge:  acquiredProxyBridge,
 		releaseProxyBridge:   releaseProxyBridge,
@@ -174,6 +180,10 @@ func (a *App) prepareBrowserStartPlan(input browserStartInput, profile *BrowserP
 		maxStartAttempts:     maxStartAttempts,
 		totalReadyTimeout:    totalReadyTimeout,
 	}, nil
+}
+
+func (a *App) fingerprintCheckExpectedArgsForRunningProfile(profile *BrowserProfile, _ []string) []string {
+	return a.fingerprintCheckExpectedArgsFromLockedProfile(profile)
 }
 
 func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *BrowserProfile, bookmarks []BrowserBookmark) ([]string, []string, []string, string, string, error) {
@@ -227,11 +237,28 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 		return nil, nil, nil, "", "", startErr
 	}
 
-	if err := browser.EnsureDefaultBookmarks(userDataDir, bookmarks); err != nil {
+	// 本地加固：先过 DENYLIST 的 sanitizedFingerprintArgs 再生成能力报告，防止指纹参数注入敏感开关。
+	fingerprintLaunchArgs := a.buildBrowserFingerprintCapabilityReport(input.ProfileID, profile.CoreId, sanitizedFingerprintArgs).LaunchArgs
+	fingerprintExpectedArgs := combineFingerprintExpectedArgs(fingerprintLaunchArgs, sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs)
+	runtimeBookmarks, fingerprintBookmarkURL, bookmarkErr := a.runtimeBookmarksForProfileExpectedArgsAndProfile(profile.ProfileId, fingerprintExpectedArgs, profile, bookmarks)
+	if bookmarkErr != nil {
+		log.Error("指纹检测书签生成失败", logger.F("profile_id", input.ProfileID), logger.F("error", bookmarkErr.Error()))
+		runtimeBookmarks = bookmarks
+	}
+	if fingerprintBookmarkURL != "" {
+		if _, err := browser.ReplaceBookmarkURL(userDataDir, fingerprintCheckBookmarkURL, fingerprintBookmarkURL); err != nil {
+			log.Warn("旧指纹检测书签更新失败", logger.F("profile_id", input.ProfileID), logger.F("error", err.Error()))
+		}
+	}
+	if err := browser.EnsureDefaultBookmarks(userDataDir, runtimeBookmarks); err != nil {
 		log.Error("默认书签写入失败", logger.F("error", err.Error()))
+	}
+	if err := writeBrowserLanguagePreferences(userDataDir, fingerprintLaunchArgs); err != nil {
+		log.Error("浏览器语言偏好写入失败", logger.F("profile_id", input.ProfileID), logger.F("error", err.Error()))
 	}
 
 	if detection, ok := detectBrowserRuntimeByActivePort(userDataDir); ok && detection.DebugReady {
+		a.markProfileLastLaunchArgsLocked(profile, nil)
 		a.markProfileRunningLocked(input.ProfileID, profile, nil, detection.PID, detection.DebugPort, true, "")
 		log.Warn("检测到同一用户数据目录已有浏览器运行，已接管为当前实例状态",
 			logger.F("profile_id", input.ProfileID),
@@ -242,7 +269,9 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 		if len(normalizeNonEmptyStrings(input.StartURLs)) == 0 && len(normalizeNonEmptyStrings(input.ExtraLaunchArgs)) == 0 {
 			return nil, nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
 		}
-		if err := a.openBrowserTabForRunningProfile(profile, input.ExtraLaunchArgs, input.StartURLs); err != nil {
+		fingerprintExpectedArgs := a.fingerprintCheckExpectedArgsForRunningProfile(profile, input.ExtraLaunchArgs)
+		resolvedStartURLs := a.resolveFingerprintCheckStartURLsForExpectedArgsAndProfile(profile.ProfileId, fingerprintExpectedArgs, profile, input.StartURLs)
+		if err := a.openBrowserTabForRunningProfile(profile, input.ExtraLaunchArgs, resolvedStartURLs); err != nil {
 			startErr := fmt.Errorf("实例已在运行，但新标签打开失败：%w", err)
 			profile.LastError = startErr.Error()
 			return nil, nil, nil, "", "", startErr
@@ -250,7 +279,7 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 		return nil, nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
 	}
 
-	if !browserRestoreLastSession(a.config) {
+	if !profileRestoreLastSession(profile, a.config) {
 		if err := clearBrowserSessionRestoreData(userDataDir); err != nil {
 			if terminated, terminateErr := terminateBrowserProcessesByUserDataDir(userDataDir, 5*time.Second); terminateErr == nil && terminated {
 				log.Warn("会话缓存被旧浏览器进程占用，已结束占用进程并重试清理",
@@ -258,7 +287,7 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 					logger.F("user_data_dir", userDataDir),
 				)
 				if retryErr := clearBrowserSessionRestoreData(userDataDir); retryErr == nil {
-					return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, chromeBinaryPath, userDataDir, nil
+					return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, fingerprintLaunchArgs, chromeBinaryPath, userDataDir, nil
 				} else {
 					err = retryErr
 				}
@@ -282,32 +311,17 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 		}
 	}
 
-	return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, sanitizedFingerprintArgs, chromeBinaryPath, userDataDir, nil
+	return sanitizedProfileLaunchArgs, sanitizedExtraLaunchArgs, fingerprintLaunchArgs, chromeBinaryPath, userDataDir, nil
 }
 
-func buildBrowserLaunchArgs(profile *BrowserProfile, userDataDir string, debugPort int, effectiveProxy string, extensionDirs []string, sanitizedProfileLaunchArgs []string, sanitizedExtraLaunchArgs []string, sanitizedFingerprintArgs []string, launchTargets []string) []string {
+func buildBrowserLaunchArgs(userDataDir string, debugPort int, effectiveProxy string, extensionDirs []string, fingerprintLaunchArgs []string, sanitizedProfileLaunchArgs []string, sanitizedExtraLaunchArgs []string, launchTargets []string, restoreLastSession bool) []string {
 	args := []string{
 		fmt.Sprintf("--user-data-dir=%s", userDataDir),
 		fmt.Sprintf("--remote-debugging-port=%d", debugPort),
 		"--disable-session-crashed-bubble",
 	}
-
-	hasFingerprint := false
-	for _, arg := range profile.FingerprintArgs {
-		if strings.HasPrefix(arg, "--fingerprint=") {
-			hasFingerprint = true
-			break
-		}
-	}
-	if !hasFingerprint {
-		seed := 0
-		for _, char := range profile.ProfileId {
-			seed = (seed << 5) - seed + int(char)
-		}
-		if seed < 0 {
-			seed = -seed
-		}
-		args = append(args, fmt.Sprintf("--fingerprint=%d", seed))
+	if restoreLastSession {
+		args = append(args, "--restore-last-session")
 	}
 
 	if effectiveProxy == "direct://" {
@@ -321,7 +335,7 @@ func buildBrowserLaunchArgs(profile *BrowserProfile, userDataDir string, debugPo
 		args = append(args, fmt.Sprintf("--load-extension=%s", extensionArg))
 	}
 
-	args = append(args, sanitizedFingerprintArgs...)
+	args = append(args, normalizeNonEmptyStrings(fingerprintLaunchArgs)...)
 	args = append(args, sanitizedProfileLaunchArgs...)
 	args = append(args, sanitizedExtraLaunchArgs...)
 	// 拼接到 argv 前剔除以 -- 开头的可疑 StartURL（防止 flag 注入）；CDP light-start 路径不走此处。

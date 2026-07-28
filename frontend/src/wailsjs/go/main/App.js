@@ -298,6 +298,10 @@ export function BrowserInstanceGetTabs(arg1) {
   return window['go']['main']['App']['BrowserInstanceGetTabs'](arg1);
 }
 
+export function BrowserInstanceOpenFingerprintCheck(arg1) {
+  return window['go']['main']['App']['BrowserInstanceOpenFingerprintCheck'](arg1);
+}
+
 export function BrowserInstanceOpenUrl(arg1, arg2) {
   return window['go']['main']['App']['BrowserInstanceOpenUrl'](arg1, arg2);
 }
@@ -364,6 +368,14 @@ export function BrowserProfileExtensionGet(arg1) {
 
 export function BrowserProfileExtensionSave(arg1, arg2, arg3) {
   return window['go']['main']['App']['BrowserProfileExtensionSave'](arg1, arg2, arg3);
+}
+
+export function BrowserProfileFingerprintCheck(arg1) {
+  return window['go']['main']['App']['BrowserProfileFingerprintCheck'](arg1);
+}
+
+export function BrowserProfileFingerprintMatrix(arg1, arg2, arg3) {
+  return window['go']['main']['App']['BrowserProfileFingerprintMatrix'](arg1, arg2, arg3);
 }
 
 export function BrowserProfileGetCode(arg1) {
@@ -614,6 +626,10 @@ export function OpenUserDataDir(arg1) {
   return window['go']['main']['App']['OpenUserDataDir'](arg1);
 }
 
+export function OpenUserDataRoot() {
+  return window['go']['main']['App']['OpenUserDataRoot']();
+}
+
 export function ProxyIDForName(arg1) {
   return window['go']['main']['App']['ProxyIDForName'](arg1);
 }
@@ -648,6 +664,10 @@ export function SaveBrowserProxies(arg1) {
 
 export function SaveBrowserSettings(arg1) {
   return window['go']['main']['App']['SaveBrowserSettings'](arg1);
+}
+
+export function SaveLaunchServerSettings(arg1) {
+  return window['go']['main']['App']['SaveLaunchServerSettings'](arg1);
 }
 
 export function SaveProxyCheckSettings(arg1) {

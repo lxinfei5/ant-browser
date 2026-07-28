@@ -5,11 +5,15 @@ import type { BrowserProxy, ProxyIPHealthResult } from '../types'
 import { fetchBrowserProxies, fetchBrowserProxyGroups, saveBrowserProxies } from '../api'
 import {
   buildChainImportCandidate,
+  buildDirectImportCandidate,
   createInitialChainImportForm,
+  INITIAL_DIRECT_IMPORT_FORM,
   ensureBuiltinProxies,
   toChainImportForm,
+  toDirectImportForm,
   toDisplayList,
   type ChainImportForm,
+  type DirectImportForm,
   type ProxyDisplayInfo,
 } from './proxyPool/helpers'
 import {
@@ -22,6 +26,7 @@ import {
 import { ProxyPoolHeader } from './proxyPool/ProxyPoolHeader'
 import { ProxyPoolTableCard } from './proxyPool/ProxyPoolTableCard'
 import { ProxyPoolCheckSettingsModal } from './proxyPool/ProxyPoolCheckSettingsModal'
+import { ProxyPoolUsageGuideModal } from './proxyPool/ProxyPoolUsageGuideModal'
 import { ProxyCoreDownloadModal } from './proxyPool/ProxyCoreDownloadModal'
 import { useProxySourceRefresh } from './proxyPool/useProxySourceRefresh'
 import { useProxyImportFlow } from './proxyPool/useProxyImportFlow'
@@ -37,6 +42,7 @@ export function ProxyPoolPage() {
   const [proxies, setProxies] = useState<BrowserProxy[]>([])
   const [displayList, setDisplayList] = useState<ProxyDisplayInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const [usageGuideOpen, setUsageGuideOpen] = useState(false)
   const {
     coreDownloadOpen,
     coreDownloadType,
@@ -89,6 +95,8 @@ export function ProxyPoolPage() {
   const [editingProxy, setEditingProxy] = useState<BrowserProxy | null>(null)
   const [chainEditMode, setChainEditMode] = useState(false)
   const [chainEditForm, setChainEditForm] = useState<ChainImportForm>(() => createInitialChainImportForm())
+  const [directEditMode, setDirectEditMode] = useState(false)
+  const [directEditForm, setDirectEditForm] = useState<DirectImportForm>({ ...INITIAL_DIRECT_IMPORT_FORM })
   const [editForm, setEditForm] = useState<ProxyEditFormValue>({
     proxyName: '',
     proxyConfig: '',
@@ -143,8 +151,6 @@ export function ProxyPoolPage() {
     ipHealthMap,
     checkingIPHealthIds,
     checkingAllIPHealth,
-    warmingBridgeIds,
-    warmingAllBridges,
     ipHealthDetailOpen,
     setIPHealthDetailOpen,
     currentIPHealthDetail,
@@ -153,8 +159,6 @@ export function ProxyPoolPage() {
     setIPHealthMap,
     handleTestOne,
     handleTestAll,
-    handleWarmupOne,
-    handleWarmupAll,
     handleCheckOneIPHealth,
     handleCheckAllIPHealth,
     openIPHealthDetail,
@@ -257,12 +261,22 @@ export function ProxyPoolPage() {
         groupName: proxy.groupName || '',
       })
       const nextChainForm = toChainImportForm(proxy.proxyName, proxy.proxyConfig)
+      const nextDirectForm = nextChainForm ? null : toDirectImportForm(proxy.proxyName, proxy.proxyConfig)
       if (nextChainForm) {
         setChainEditMode(true)
         setChainEditForm(nextChainForm)
+        setDirectEditMode(false)
+        setDirectEditForm({ ...INITIAL_DIRECT_IMPORT_FORM })
+      } else if (nextDirectForm) {
+        setChainEditMode(false)
+        setChainEditForm(createInitialChainImportForm())
+        setDirectEditMode(true)
+        setDirectEditForm(nextDirectForm)
       } else {
         setChainEditMode(false)
         setChainEditForm(createInitialChainImportForm())
+        setDirectEditMode(false)
+        setDirectEditForm({ ...INITIAL_DIRECT_IMPORT_FORM })
       }
       setEditModalOpen(true)
     }
@@ -280,6 +294,15 @@ export function ProxyPoolPage() {
         nextProxyConfig = candidate.proxyConfig
       } catch (error: any) {
         toast.error(error?.message || '链式代理配置无效')
+        return
+      }
+    } else if (directEditMode) {
+      try {
+        const candidate = buildDirectImportCandidate(directEditForm)
+        nextProxyName = candidate.proxyName
+        nextProxyConfig = candidate.proxyConfig
+      } catch (error: any) {
+        toast.error(error?.message || '代理配置无效')
         return
       }
     } else if (!nextProxyName) {
@@ -324,6 +347,7 @@ export function ProxyPoolPage() {
         hasURLImportSources={hasURLImportSources}
         onCheckAllIPHealth={() => void handleCheckAllIPHealth(filteredList)}
         onOpenSettings={() => void openCheckSettings()}
+        onOpenUsageGuide={() => setUsageGuideOpen(true)}
         onOpenImport={() => setImportModalOpen(true)}
         onOpenCoreDownload={openCoreDownload}
         onRefreshAllSources={() => void handleRefreshAllSources(false)}
@@ -375,8 +399,6 @@ export function ProxyPoolPage() {
         onTestOne={(record) => void handleTestOne(record)}
         onToggleAll={handleToggleAll}
         onToggleOne={handleToggleOne}
-        onWarmupOne={(record) => void handleWarmupOne(record)}
-        onWarmupSelected={() => void handleWarmupAll(filteredList.filter(item => selectedIds.has(item.proxyId)))}
         protocolOptions={protocolOptions}
         refreshingSourceIds={refreshingSourceIds}
         selectedCount={selectedCount}
@@ -384,8 +406,11 @@ export function ProxyPoolPage() {
         someFilteredSelected={someFilteredSelected}
         sortColumn={sortColumn}
         sortOrder={sortOrder}
-        warmingAllBridges={warmingAllBridges}
-        warmingBridgeIds={warmingBridgeIds}
+      />
+
+      <ProxyPoolUsageGuideModal
+        open={usageGuideOpen}
+        onClose={() => setUsageGuideOpen(false)}
       />
 
       <ProxyPoolImportModal
@@ -452,10 +477,13 @@ export function ProxyPoolPage() {
         editForm={editForm}
         chainEditMode={chainEditMode}
         chainEditForm={chainEditForm}
+        directEditMode={directEditMode}
+        directEditForm={directEditForm}
         onClose={() => setEditModalOpen(false)}
         onSave={handleSaveProxy}
         onChange={(patch) => setEditForm((prev) => ({ ...prev, ...patch }))}
         onChainEditFormChange={(patch) => setChainEditForm((prev) => ({ ...prev, ...patch }))}
+        onDirectEditFormChange={(patch) => setDirectEditForm((prev) => ({ ...prev, ...patch }))}
         onChainEditHopChange={updateChainEditHop}
       />
 

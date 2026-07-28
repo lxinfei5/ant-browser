@@ -4,7 +4,9 @@ import (
 	"ant-chrome/backend/internal/config"
 	"ant-chrome/backend/internal/netguard"
 	"ant-chrome/backend/internal/proxy"
+	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,7 +20,7 @@ import (
 
 const (
 	maxClashSubscriptionBytes = 8 * 1024 * 1024
-	clashSubscriptionTimeout  = 25 * time.Second
+	clashSubscriptionTimeout  = 10 * time.Second
 )
 
 var clashSubscriptionUserAgents = []string{
@@ -63,7 +65,7 @@ func (a *App) browserProxyFetchClashByURL(rawURL string, proxyID string) (map[st
 		}
 		client = proxyClient
 	}
-	content, payload, err := fetchClashSubscriptionWithFallback(client, parsedURL.String())
+	content, payload, err := fetchClashSubscriptionWithFallback(client, parsedURL.String(), clashSubscriptionTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -104,14 +106,23 @@ func (a *App) clashSubscriptionProxyClient(proxyID string) (*http.Client, error)
 	return proxy.BuildProxyHTTPClient("", proxyID, proxies, a.xrayMgr, a.singboxMgr, a.clashMgr, connectorType, clashSubscriptionTimeout)
 }
 
-func fetchClashSubscriptionWithFallback(client *http.Client, targetURL string) (string, interface{}, error) {
+func fetchClashSubscriptionWithFallback(client *http.Client, targetURL string, timeout time.Duration) (string, interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
 	var lastErr error
 	for _, userAgent := range clashSubscriptionUserAgents {
-		content, payload, err := fetchClashSubscriptionWithUserAgent(client, targetURL, userAgent)
+		if ctx.Err() != nil {
+			return "", nil, clashSubscriptionTimeoutError(timeout)
+		}
+		content, payload, err := fetchClashSubscriptionWithUserAgent(ctx, client, targetURL, userAgent)
 		if err == nil {
 			return content, payload, nil
 		}
 		lastErr = err
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			return "", nil, clashSubscriptionTimeoutError(timeout)
+		}
 	}
 	if lastErr == nil {
 		lastErr = fmt.Errorf("未配置可用的 User-Agent")
@@ -119,11 +130,20 @@ func fetchClashSubscriptionWithFallback(client *http.Client, targetURL string) (
 	return "", nil, fmt.Errorf("拉取订阅失败: %w", lastErr)
 }
 
-func fetchClashSubscriptionWithUserAgent(client *http.Client, targetURL string, userAgent string) (string, interface{}, error) {
+func clashSubscriptionTimeoutError(timeout time.Duration) error {
+	seconds := int(timeout / time.Second)
+	if seconds <= 0 {
+		return fmt.Errorf("拉取订阅超时")
+	}
+	return fmt.Errorf("拉取订阅超时（%d秒）", seconds)
+}
+
+func fetchClashSubscriptionWithUserAgent(ctx context.Context, client *http.Client, targetURL string, userAgent string) (string, interface{}, error) {
 	req, err := http.NewRequest(http.MethodGet, targetURL, nil)
 	if err != nil {
 		return "", nil, fmt.Errorf("创建请求失败")
 	}
+	req = req.WithContext(ctx)
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/yaml,text/yaml,text/plain,*/*")
 	req.Header.Set("Cache-Control", "no-cache")

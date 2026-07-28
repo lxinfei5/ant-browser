@@ -25,6 +25,7 @@ var managedLaunchArgSpecs = []managedLaunchArgSpec{
 	{prefix: "--ignore-certificate-errors", takesValue: false},
 	{prefix: "--disable-web-security", takesValue: false},
 	{prefix: "--ignore-urlfetcher-cert-requests", takesValue: false},
+	{prefix: "--restore-last-session", takesValue: false},
 }
 
 func sanitizeManagedLaunchArgs(args []string) ([]string, []string) {

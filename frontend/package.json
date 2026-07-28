@@ -1,7 +1,7 @@
 {
   "name": "profilepool-frontend",
   "private": true,
-  "version": "1.3.0",
+  "version": "1.5.0",
   "type": "module",
   "scripts": {
     "ensure:native": "node ./scripts/ensure-rollup-native.mjs",

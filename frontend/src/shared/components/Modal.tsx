@@ -1,4 +1,5 @@
 import { ReactNode, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { Button } from './Button'
 
@@ -34,21 +35,18 @@ export function Modal({
 
   if (!open) return null
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* 遮罩层 */}
+  return createPortal(
+    <div className="fixed inset-0 z-[9990] flex items-center justify-center">
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={closable ? onClose : undefined}
       />
 
-      {/* 弹窗内容 */}
       <div
         className="relative bg-[var(--color-bg-elevated)] rounded-xl shadow-2xl animate-scale-in max-h-[90vh] w-full flex flex-col"
         style={{ width, maxWidth: '90vw' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* 标题栏 */}
         {(title || closable) && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-border)] flex-shrink-0">
             {title && (
@@ -67,19 +65,18 @@ export function Modal({
           </div>
         )}
 
-        {/* 内容区 */}
         <div className="px-6 py-4 overflow-y-auto flex-1 min-h-0">
           {children}
         </div>
 
-        {/* 底部按钮 */}
         {footer && (
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)] flex-shrink-0">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

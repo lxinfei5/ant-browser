@@ -47,7 +47,7 @@ type App struct {
 	bridgeMu               sync.Mutex
 	profileBridgeRefs      map[string]profileProxyBridgeRef
 	deferredStartTargetsMu sync.Mutex
-	deferredStartTargets   map[string][]string
+	deferredStartTargets   map[string]deferredStartTargetsPlan
 	automationTargetMu     sync.Mutex
 	automationTargetCursor map[string]string
 	stopServicesOnce       sync.Once
@@ -64,7 +64,7 @@ func NewApp(appRoot string, appVersion ...string) *App {
 		appRoot:                strings.TrimSpace(appRoot),
 		version:                version,
 		profileBridgeRefs:      make(map[string]profileProxyBridgeRef),
-		deferredStartTargets:   make(map[string][]string),
+		deferredStartTargets:   make(map[string]deferredStartTargetsPlan),
 		automationTargetCursor: make(map[string]string),
 	}
 }

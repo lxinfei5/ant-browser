@@ -263,6 +263,23 @@ var migrations = []migration{
 			`CREATE INDEX IF NOT EXISTS idx_leases_account_id ON account_leases(account_id)`,
 		},
 	},
+	// 上游 v13/v14 与本地 v13/v14（accounts / account_leases）版本号冲突。
+	// 迁移器按 MAX(version) 跳过，为兼容已在本地 develop 上创建、版本已到 14 的开发库，
+	// 将上游迁移重编号为 15/16（语句均为幂等的 ALTER ADD COLUMN，重复执行会被忽略）。
+	{
+		version: 15,
+		desc:    "实例表添加历史标签恢复覆盖字段（上游 v13）",
+		stmts: []string{
+			`ALTER TABLE browser_profiles ADD COLUMN restore_last_session TEXT NOT NULL DEFAULT ''`,
+		},
+	},
+	{
+		version: 16,
+		desc:    "实例表添加内存限制字段（上游 v14）",
+		stmts: []string{
+			`ALTER TABLE browser_profiles ADD COLUMN memory_limit_mb INTEGER NOT NULL DEFAULT 0`,
+		},
+	},
 	// ── 新版本在此追加，格式：
 	// {
 	//     version: 4,

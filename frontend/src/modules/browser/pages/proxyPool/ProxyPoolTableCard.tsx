@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Button, Card, Input, Switch, Table } from '../../../../shared/components'
 import type { SortOrder, TableColumn } from '../../../../shared/components/Table'
@@ -37,8 +37,6 @@ interface ProxyPoolTableCardProps {
   onTestOne: (record: ProxyDisplayInfo) => void
   onToggleAll: () => void
   onToggleOne: (proxyId: string) => void
-  onWarmupOne: (record: ProxyDisplayInfo) => void
-  onWarmupSelected: () => void
   protocolOptions: string[]
   refreshingSourceIds: Set<string>
   selectedCount: number
@@ -49,8 +47,6 @@ interface ProxyPoolTableCardProps {
   latencyMap: Record<string, number>
   latencyEngineMap: Record<string, string>
   latencyErrorMap: Record<string, string>
-  warmingBridgeIds: Set<string>
-  warmingAllBridges: boolean
 }
 
 export function ProxyPoolTableCard({
@@ -84,8 +80,6 @@ export function ProxyPoolTableCard({
   onTestOne,
   onToggleAll,
   onToggleOne,
-  onWarmupOne,
-  onWarmupSelected,
   protocolOptions,
   refreshingSourceIds,
   selectedCount,
@@ -96,10 +90,30 @@ export function ProxyPoolTableCard({
   latencyMap,
   latencyEngineMap,
   latencyErrorMap,
-  warmingBridgeIds,
-  warmingAllBridges,
 }: ProxyPoolTableCardProps) {
   const hasActiveFilters = filterProtocol !== 'all' || !!filterKeyword || filterGroup !== 'all' || filterAvailableOnly
+  const [openMoreProxyId, setOpenMoreProxyId] = useState<string | null>(null)
+  const [moreMenuPlacement, setMoreMenuPlacement] = useState<'up' | 'down'>('down')
+
+  useEffect(() => {
+    const closeMoreMenu = () => {
+      setOpenMoreProxyId(null)
+      setMoreMenuPlacement('down')
+    }
+    document.addEventListener('click', closeMoreMenu)
+    return () => document.removeEventListener('click', closeMoreMenu)
+  }, [])
+
+  const resolveMoreMenuPlacement = (button: HTMLElement, menuHeight: number) => {
+    const buttonRect = button.getBoundingClientRect()
+    const scrollParent = button.closest('.overflow-auto')
+    const scrollParentRect = scrollParent?.getBoundingClientRect()
+    const boundaryTop = Math.max(0, scrollParentRect?.top ?? 0)
+    const boundaryBottom = Math.min(window.innerHeight, scrollParentRect?.bottom ?? window.innerHeight)
+    const availableAbove = buttonRect.top - boundaryTop
+    const availableBelow = boundaryBottom - buttonRect.bottom
+    return availableBelow < menuHeight && availableAbove > availableBelow ? 'up' : 'down'
+  }
 
   const renderLatency = (record: ProxyDisplayInfo) => {
     if (record.proxyConfig === 'direct://') {
@@ -234,36 +248,19 @@ export function ProxyPoolTableCard({
     {
       key: 'actions',
       title: '操作',
-      width: '380px',
+      width: '190px',
       render: (_, record) => {
         const isBuiltin = BUILTIN_PROXY_IDS.has(record.proxyId)
         const sourceId = record.sourceId || ''
         const hasSource = !!sourceId && !!record.sourceUrl
+        const moreOpen = openMoreProxyId === record.proxyId
+        const closeMore = () => setOpenMoreProxyId(null)
         return (
-          <div className="flex gap-2">
-            {hasSource && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={(event) => { event.stopPropagation(); onRefreshSingleSource(sourceId) }}
-                loading={refreshingSourceIds.has(sourceId)}
-              >
-                刷新订阅
-              </Button>
-            )}
+          <div className="flex items-center gap-2">
             <Button
               size="sm"
               variant="ghost"
-              onClick={(event) => { event.stopPropagation(); onWarmupOne(record) }}
-              loading={warmingBridgeIds.has(record.proxyId)}
-              disabled={record.proxyConfig === 'direct://'}
-            >
-              预热
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={(event) => { event.stopPropagation(); onTestOne(record) }}
+              onClick={(event) => { event.stopPropagation(); closeMore(); onTestOne(record) }}
               loading={latencyMap[record.proxyId] === -1}
               disabled={record.proxyConfig === 'direct://'}
             >
@@ -272,36 +269,73 @@ export function ProxyPoolTableCard({
             <Button
               size="sm"
               variant="ghost"
-              onClick={(event) => { event.stopPropagation(); onCheckOneIPHealth(record) }}
-              loading={checkingIPHealthIds.has(record.proxyId)}
-              disabled={record.proxyConfig === 'direct://'}
-            >
-              IP健康
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
               disabled={isBuiltin}
               title={isBuiltin ? '内置代理不可编辑' : undefined}
               onClick={(event) => {
                 event.stopPropagation()
+                closeMore()
                 if (!isBuiltin) onEdit(record)
               }}
             >
               编辑
             </Button>
-            <Button
-              size="sm"
-              variant="danger"
-              disabled={isBuiltin}
-              title={isBuiltin ? '内置代理不可删除' : undefined}
-              onClick={(event) => {
-                event.stopPropagation()
-                if (!isBuiltin) onDelete(record.proxyId)
-              }}
-            >
-              删除
-            </Button>
+            <div className="relative" onClick={(event) => event.stopPropagation()}>
+              <Button
+                size="sm"
+                variant="secondary"
+                aria-expanded={moreOpen}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  if (moreOpen) {
+                    closeMore()
+                    return
+                  }
+                  setMoreMenuPlacement(resolveMoreMenuPlacement(event.currentTarget, hasSource ? 132 : 96))
+                  setOpenMoreProxyId(record.proxyId)
+                }}
+              >
+                更多
+              </Button>
+              {moreOpen && (
+                <div className={`absolute right-0 z-30 w-28 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-1 shadow-lg ${moreMenuPlacement === 'up' ? 'bottom-9' : 'top-9'}`}>
+                  {hasSource && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="w-full justify-start"
+                      onClick={(event) => { event.stopPropagation(); closeMore(); onRefreshSingleSource(sourceId) }}
+                      loading={refreshingSourceIds.has(sourceId)}
+                    >
+                      刷新订阅
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="w-full justify-start"
+                    onClick={(event) => { event.stopPropagation(); closeMore(); onCheckOneIPHealth(record) }}
+                    loading={checkingIPHealthIds.has(record.proxyId)}
+                    disabled={record.proxyConfig === 'direct://'}
+                  >
+                    IP健康
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    className="w-full justify-start"
+                    disabled={isBuiltin}
+                    title={isBuiltin ? '内置代理不可删除' : undefined}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      closeMore()
+                      if (!isBuiltin) onDelete(record.proxyId)
+                    }}
+                  >
+                    删除
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         )
       },
@@ -318,12 +352,12 @@ export function ProxyPoolTableCard({
     onEdit,
     onOpenIPHealthDetail,
     onRefreshSingleSource,
+    openMoreProxyId,
+    moreMenuPlacement,
     onTestOne,
     onToggleOne,
-    onWarmupOne,
     refreshingSourceIds,
     selectedIds,
-    warmingBridgeIds,
   ])
 
   return (
@@ -399,14 +433,9 @@ export function ProxyPoolTableCard({
           </label>
         )}
         {selectedCount > 0 && (
-          <>
-            <Button size="sm" variant="secondary" onClick={onWarmupSelected} loading={warmingAllBridges}>
-              预热所选 ({selectedCount})
-            </Button>
-            <Button size="sm" variant="danger" onClick={onOpenBatchDelete}>
-              删除所选 ({selectedCount})
-            </Button>
-          </>
+          <Button size="sm" variant="danger" onClick={onOpenBatchDelete}>
+            删除所选 ({selectedCount})
+          </Button>
         )}
       </div>
       <Table
