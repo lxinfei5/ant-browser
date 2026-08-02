@@ -12,6 +12,7 @@ Thumbs.db
 
 # Local agent/editor rules
 .windsurfrules
+.claude/
 
 # Logs
 *.log
