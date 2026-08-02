@@ -1,3 +1,5 @@
+import { tagEquals } from '../utils/tagMatch'
+
 interface TagFilterBarProps {
   tags: string[]
   selected: Set<string>
@@ -7,9 +9,17 @@ interface TagFilterBarProps {
 export function TagFilterBar({ tags, selected, onChange }: TagFilterBarProps) {
   if (tags.length === 0) return null
 
+  // 大小写不敏感判断 selected 是否含某标签（兼容历史持久化的不同 casing）
+  const isSelected = (tag: string) => Array.from(selected).some(s => tagEquals(s, tag))
+
   const toggle = (tag: string) => {
-    const next = new Set(selected)
-    next.has(tag) ? next.delete(tag) : next.add(tag)
+    const next = new Set<string>()
+    let removed = false
+    for (const s of selected) {
+      if (tagEquals(s, tag)) { removed = true; continue }
+      next.add(s)
+    }
+    if (!removed) next.add(tag)
     onChange(next)
   }
 
@@ -33,7 +43,7 @@ export function TagFilterBar({ tags, selected, onChange }: TagFilterBarProps) {
           key={tag}
           onClick={() => toggle(tag)}
           className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors cursor-pointer ${
-            selected.has(tag)
+            isSelected(tag)
               ? 'bg-[var(--accent)] text-[var(--accent-contrast)]'
               : 'bg-[var(--color-bg-muted)] text-[var(--color-text-muted)] hover:bg-[var(--color-bg-subtle)]'
           }`}

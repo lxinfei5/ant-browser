@@ -2,6 +2,7 @@
 import type { Account, BrowserCore, BrowserProfile } from '../../types'
 import { EMPTY_FILTERS, type InstanceFilters } from '../../components/InstanceFilterBar'
 import { indexAccountsByProfileId } from '../../api/accounts'
+import { mergeTags, tagsContain } from '../../utils/tagMatch'
 import type { BrowserViewMode } from '../../components/BrowserListLayout'
 
 export const resolveProfileStatus = (running: boolean, debugReady: boolean, starting: boolean, stopping: boolean) => {
@@ -73,11 +74,12 @@ export function useBrowserListDerived(
   const runningCount = useMemo(() => profiles.filter(profile => profile.running).length, [profiles])
   const accountByProfileId = useMemo(() => indexAccountsByProfileId(accounts), [accounts])
   const allTags = useMemo(() => {
-    const set = new Set<string>()
-    profiles.forEach(profile => profile.tags?.forEach(tag => set.add(tag)))
-    serverTags.forEach(tag => { if (tag.trim()) set.add(tag.trim()) })
-    return Array.from(set).sort()
-  }, [profiles, serverTags])
+    return mergeTags(
+      profiles.flatMap(profile => profile.tags || []),
+      serverTags,
+      accounts.flatMap(account => account.tags || []),
+    )
+  }, [profiles, serverTags, accounts])
 
   const defaultCore = useMemo(() => {
     return cores.find(core => core.isDefault) || cores[0] || null
@@ -126,7 +128,12 @@ export function useBrowserListDerived(
         const effectiveCore = resolveProfileCore(profile)
         if (!effectiveCore || effectiveCore.coreId !== filters.coreId) return false
       }
-      if (filters.tags.size > 0 && !profile.tags?.some(tag => filters.tags.has(tag))) return false
+      if (filters.tags.size > 0) {
+        const account = accountByProfileId.get(profile.profileId)
+        const combinedTags = [...(profile.tags || []), ...(account?.tags || [])]
+        const matches = Array.from(filters.tags).some(ft => tagsContain(combinedTags, ft))
+        if (!matches) return false
+      }
       // 账号池过滤（Phase 2）
       if (filters.platform || filters.accountStatus) {
         const account = accountByProfileId.get(profile.profileId)

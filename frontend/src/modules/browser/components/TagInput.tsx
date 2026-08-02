@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { normalizeTag } from '../utils/tagMatch'
 
 interface TagInputProps {
   value: string[]
@@ -23,7 +24,7 @@ export function TagInput({ value, onChange, suggestions = [], placeholder = '输
   const inputRef = useRef<HTMLInputElement>(null)
 
   const filtered = suggestions.filter(
-    s => s.toLowerCase().includes(input.toLowerCase()) && !value.includes(s)
+    s => s.toLowerCase().includes(input.toLowerCase()) && !value.some(v => normalizeTag(v) === normalizeTag(s))
   )
   const open = showSuggestions && filtered.length > 0
 
@@ -39,9 +40,15 @@ export function TagInput({ value, onChange, suggestions = [], placeholder = '输
   }, [])
 
   const addTag = (tag: string) => {
-    const t = tag.trim()
-    if (!t || value.includes(t)) return
-    onChange([...value, t])
+    const trimmed = tag.trim()
+    if (!trimmed) return
+    // 大小写不敏感去重：已存在等价标签则忽略
+    if (value.some(v => normalizeTag(v) === normalizeTag(trimmed))) return
+    // 若输入能大小写不敏感命中某个建议，存建议的原值，避免与注册表/已有标签产生 casing 分叉
+    const matched = suggestions.find(s => normalizeTag(s) === normalizeTag(trimmed))
+    const display = matched ?? trimmed
+    if (value.some(v => normalizeTag(v) === normalizeTag(display))) return
+    onChange([...value, display])
     setInput('')
     setShowSuggestions(false)
   }

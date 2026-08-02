@@ -3,6 +3,8 @@ import { Plus, Tag, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, toast } from '../../../shared/components'
 import type { BrowserProfile } from '../types'
 import { batchRemoveProfileTags, batchSetProfileTags, createBrowserTag, deleteBrowserTag, fetchBrowserProfiles, fetchKnownTags, renameBrowserTag } from '../api'
+import { listAccounts, indexAccountsByProfileId } from '../api/accounts'
+import { mergeTags, tagEquals, tagsContain } from '../utils/tagMatch'
 
 // ─── 左侧标签面板 ────────────────────────────────────────────────────────────
 
@@ -221,19 +223,23 @@ export function TagManagementPage() {
   const [serverTags, setServerTags] = useState<string[]>([])
   // 创建失败时兜底的临时标签（纯前端暂存）
   const [pendingTags, setPendingTags] = useState<string[]>([])
+  // profileId -> 绑定账号的 tags，让标签册能按账号标签反查实例
+  const [accountTagsByProfileId, setAccountTagsByProfileId] = useState<Map<string, string[]>>(new Map())
 
-  // 合并：实例已有标签 + 注册表标签 + 创建失败的待分配标签
+  // 合并：实例已有标签 + 注册表标签 + 账号标签 + 创建失败的待分配标签
   const allTagsWithPending = useMemo(() => {
-    const set = new Set<string>()
-    profiles.forEach(p => p.tags?.forEach(t => set.add(t)))
-    serverTags.forEach(t => set.add(t))
-    pendingTags.forEach(t => set.add(t))
-    return Array.from(set).sort()
-  }, [profiles, serverTags, pendingTags])
+    const accountTags = Array.from(accountTagsByProfileId.values()).flat()
+    return mergeTags(
+      profiles.flatMap(p => p.tags || []),
+      serverTags,
+      accountTags,
+      pendingTags,
+    )
+  }, [profiles, serverTags, pendingTags, accountTagsByProfileId])
 
   const handleCreateTag = async (tag: string) => {
     const trimmed = tag.trim()
-    if (!trimmed || allTagsWithPending.includes(trimmed)) return
+    if (!trimmed || allTagsWithPending.some(t => tagEquals(t, trimmed))) return
     setSaving(true)
     try {
       await createBrowserTag(trimmed)
@@ -251,7 +257,9 @@ export function TagManagementPage() {
   const handleDeleteTag = async (tag: string) => {
     setSaving(true)
     try {
-      // 从标签注册表删除，并从所有实例移除
+      // 从标签注册表删除，并从所有实例移除（决策 1：不触碰账号上的同名标签）
+      // 注：后端 BatchRemoveTags 按精确匹配移除，故这里也用精确匹配保持一致；
+      // 同标签不同大小写的边缘场景不在本次范围内（查找/计数已大小写不敏感）。
       await deleteBrowserTag(tag)
       const affectedIds = profiles
         .filter(p => p.tags?.includes(tag))
@@ -277,6 +285,15 @@ export function TagManagementPage() {
       try {
         setServerTags(await fetchKnownTags())
       } catch { setServerTags([]) }
+      // 加载账号池，建立 profileId -> account.tags 映射，让标签册能按账号标签反查实例
+      try {
+        const accounts = await listAccounts()
+        const accountMap = new Map<string, string[]>()
+        for (const [profileId, account] of indexAccountsByProfileId(accounts)) {
+          accountMap.set(profileId, account.tags || [])
+        }
+        setAccountTagsByProfileId(accountMap)
+      } catch { setAccountTagsByProfileId(new Map()) }
       // 清理已被实例使用的 pendingTags
       const usedTags = new Set<string>()
       data.forEach(p => p.tags?.forEach(t => usedTags.add(t)))
@@ -293,14 +310,24 @@ export function TagManagementPage() {
 
   const profilesByTag = useMemo(() => {
     const map: Record<string, number> = {}
-    profiles.forEach(p => p.tags?.forEach(t => { map[t] = (map[t] || 0) + 1 }))
+    for (const tag of allTags) {
+      let count = 0
+      for (const p of profiles) {
+        const acct = accountTagsByProfileId.get(p.profileId) || []
+        if (tagsContain(p.tags, tag) || tagsContain(acct, tag)) count++
+      }
+      map[tag] = count
+    }
     return map
-  }, [profiles])
+  }, [allTags, profiles, accountTagsByProfileId])
 
   const displayProfiles = useMemo(() => {
     if (selectedTag === null) return profiles
-    return profiles.filter(p => p.tags?.includes(selectedTag))
-  }, [profiles, selectedTag])
+    return profiles.filter(p => {
+      const acct = accountTagsByProfileId.get(p.profileId) || []
+      return tagsContain(p.tags, selectedTag) || tagsContain(acct, selectedTag)
+    })
+  }, [profiles, selectedTag, accountTagsByProfileId])
 
   // 勾选逻辑
   const isAllSelected = displayProfiles.length > 0 && displayProfiles.every(p => selectedIds.has(p.profileId))
@@ -342,7 +369,7 @@ export function TagManagementPage() {
   // 重命名标签
   const handleRenameTag = async (oldName: string, newName: string) => {
     if (oldName === newName || !newName.trim()) return
-    if (allTags.includes(newName.trim())) {
+    if (allTags.some(t => tagEquals(t, newName.trim()))) {
       toast.error('标签名称已存在')
       return
     }
@@ -432,7 +459,7 @@ export function TagManagementPage() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {p.tags?.length ? p.tags.map(t => (
-                          <Badge key={t} variant={t === selectedTag ? 'info' : 'default'}>{t}</Badge>
+                          <Badge key={t} variant={tagEquals(t, selectedTag) ? 'info' : 'default'}>{t}</Badge>
                         )) : <span className="text-xs text-[var(--color-text-muted)]">无标签</span>}
                       </div>
                     </td>

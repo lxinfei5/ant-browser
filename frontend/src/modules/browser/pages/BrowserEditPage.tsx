@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ChevronDown, ChevronUp, FolderOpen, HelpCircle, Layers, ShieldCheck } from 'lucide-react'
 import { Button, Card, ConfirmModal, FormItem, Input, Modal, Select, Textarea, toast } from '../../../shared/components'
 import type { BrowserCore, BrowserFingerprintCapabilityReport, BrowserFingerprintCapabilityRow, BrowserFingerprintCheckResult, BrowserProfileInput, BrowserProxy, BrowserGroup, ProxyLocationResolveResult } from '../types'
-import { browserProxyResolveLocation, checkBrowserProfileFingerprint, createBrowserProfile, fetchAllTags, fetchBrowserCores, fetchBrowserProfileFingerprintMatrix, fetchBrowserProfiles, fetchBrowserProxies, fetchBrowserSettings, fetchGroups, openBrowserFingerprintCheck, openUserDataDir, updateBrowserProfile, validateProxyConfig } from '../api'
+import { browserProxyResolveLocation, checkBrowserProfileFingerprint, createBrowserProfile, fetchAllTags, fetchBrowserCores, fetchBrowserProfileFingerprintMatrix, fetchBrowserProfiles, fetchBrowserProxies, fetchBrowserSettings, fetchKnownTags, fetchGroups, openBrowserFingerprintCheck, openUserDataDir, updateBrowserProfile, validateProxyConfig } from '../api'
 import { FingerprintPanel } from '../components/FingerprintPanel'
 import { applyLocaleToFingerprintArgs, validateFingerprintArgs, withAdaptiveDefaultWindowSize } from '../utils/fingerprintSerializer'
+import { mergeTags } from '../utils/tagMatch'
 import { TagInput } from '../components/TagInput'
 import { GroupSelector } from '../components/GroupSelector'
 import { ProxyPickerModal } from '../components/ProxyPickerModal'
@@ -260,6 +261,8 @@ export function BrowserEditPage() {
   const [groups, setGroups] = useState<BrowserGroup[]>([])
   const [launchArgsText, setLaunchArgsText] = useState('')
   const [allTags, setAllTags] = useState<string[]>([])
+  // 「标签」框建议源：实例已有 tags + 注册表（不含账号标签），避免账号标签污染实例标签建议
+  const [instanceTagSuggestions, setInstanceTagSuggestions] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [proxyPickerOpen, setProxyPickerOpen] = useState(false)
   const [proxyMode, setProxyMode] = useState<ProxySourceMode>('pool')
@@ -288,17 +291,21 @@ export function BrowserEditPage() {
 
   useEffect(() => {
     const loadData = async () => {
-      const [coreList, proxyList, tagList, groupList, settings] = await Promise.all([
+      const [coreList, proxyList, allTagList, knownTagList, groupList, settings, profileList] = await Promise.all([
         fetchBrowserCores(),
         fetchBrowserProxies(),
         fetchAllTags(),
+        fetchKnownTags(),
         fetchGroups(),
         fetchBrowserSettings(),
+        fetchBrowserProfiles(),
       ])
       const resolvedDefaultLaunchArgs = resolveDefaultLaunchArgs(settings.defaultLaunchArgs || [])
       setCores(coreList)
       setProxies(proxyList)
-      setAllTags(tagList)
+      setAllTags(allTagList)
+      // 「标签」框建议 = 实例已有 tags + 注册表（不含账号标签）
+      setInstanceTagSuggestions(mergeTags(profileList.flatMap(p => p.tags || []), knownTagList))
       setGroups(groupList)
 
       if (isCreate) {
@@ -314,8 +321,7 @@ export function BrowserEditPage() {
         setLaunchArgsText(resolvedDefaultLaunchArgs.join('\n'))
         return
       }
-      const list = await fetchBrowserProfiles()
-      const current = list.find(item => item.profileId === id)
+      const current = profileList.find(item => item.profileId === id)
       if (!current) return
       // 加载绑定到此实例的账号
       try {
@@ -656,11 +662,11 @@ export function BrowserEditPage() {
               placeholder="0 表示不限制"
             />
           </FormItem>
-          <FormItem label="标签">
+          <FormItem label="标签" hint="实例标签，可在标签册按此筛选实例">
             <TagInput
               value={formData.tags}
               onChange={tags => handleChange('tags', tags)}
-              suggestions={allTags}
+              suggestions={instanceTagSuggestions}
               placeholder="输入标签后按回车，支持从已有标签选择"
             />
           </FormItem>
@@ -700,7 +706,7 @@ export function BrowserEditPage() {
               placeholder="账号备注信息"
             />
           </FormItem>
-          <FormItem label="账号标签">
+          <FormItem label="账号标签" hint="挂在绑定账号上（账号池用）；两者均可在标签册按标签查找实例">
             <TagInput
               value={accountForm.tags}
               onChange={tags => { setAccountForm(prev => ({ ...prev, tags })); setIsDirty(true) }}
