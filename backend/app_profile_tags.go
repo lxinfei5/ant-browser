@@ -77,6 +77,35 @@ func (a *App) BrowserProfileBatchRemoveTags(profileIds []string, tags []string) 
 	return nil
 }
 
+// BrowserCreateTag 在标签注册表中注册一个新标签（幂等）。
+// 标签管理页「新建标签」调用，使新标签持久化、并进入实例编辑器建议与实例列表筛选。
+func (a *App) BrowserCreateTag(tagName string) error {
+	a.browserMgr.Mutex.Lock()
+	defer a.browserMgr.Mutex.Unlock()
+	tagName = strings.TrimSpace(tagName)
+	if tagName == "" {
+		return fmt.Errorf("标签名称不能为空")
+	}
+	if a.browserMgr.TagRegistry == nil {
+		return fmt.Errorf("标签注册表不可用")
+	}
+	return a.browserMgr.TagRegistry.Ensure(tagName)
+}
+
+// BrowserDeleteTag 从标签注册表删除一个标签（不影响已挂在实例上的标签）。
+func (a *App) BrowserDeleteTag(tagName string) error {
+	a.browserMgr.Mutex.Lock()
+	defer a.browserMgr.Mutex.Unlock()
+	tagName = strings.TrimSpace(tagName)
+	if tagName == "" {
+		return fmt.Errorf("标签名称不能为空")
+	}
+	if a.browserMgr.TagRegistry == nil {
+		return fmt.Errorf("标签注册表不可用")
+	}
+	return a.browserMgr.TagRegistry.Delete(tagName)
+}
+
 // BrowserRenameTag 重命名所有实例中的指定标签
 func (a *App) BrowserRenameTag(oldName string, newName string) error {
 	log := logger.New("Browser")
@@ -121,6 +150,18 @@ func (a *App) BrowserRenameTag(oldName string, newName string) error {
 				}
 			}
 			changedCount++
+		}
+	}
+
+	// 同步标签注册表：即使没有实例挂着该标签，注册表条目也要重命名
+	if a.browserMgr.TagRegistry != nil {
+		if err := a.browserMgr.TagRegistry.Ensure(newName); err != nil {
+			log.Error("重命名标签注册失败", logger.F("new", newName), logger.F("error", err))
+			return err
+		}
+		if err := a.browserMgr.TagRegistry.Delete(oldName); err != nil {
+			log.Error("重命名旧标签删除失败", logger.F("old", oldName), logger.F("error", err))
+			return err
 		}
 	}
 

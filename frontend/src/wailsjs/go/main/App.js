@@ -230,6 +230,14 @@ export function BrowserCoreValidate(arg1) {
   return window['go']['main']['App']['BrowserCoreValidate'](arg1);
 }
 
+export function BrowserCreateTag(arg1) {
+  return window['go']['main']['App']['BrowserCreateTag'](arg1);
+}
+
+export function BrowserDeleteTag(arg1) {
+  return window['go']['main']['App']['BrowserDeleteTag'](arg1);
+}
+
 export function BrowserExportCookies(arg1) {
   return window['go']['main']['App']['BrowserExportCookies'](arg1);
 }
@@ -332,6 +340,10 @@ export function BrowserInstanceStatus(arg1) {
 
 export function BrowserInstanceStop(arg1) {
   return window['go']['main']['App']['BrowserInstanceStop'](arg1);
+}
+
+export function BrowserListTags() {
+  return window['go']['main']['App']['BrowserListTags']();
 }
 
 export function BrowserProfileBatchRemoveTags(arg1, arg2) {

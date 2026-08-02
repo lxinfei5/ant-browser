@@ -68,14 +68,16 @@ export function useBrowserListDerived(
   startingIds: Set<string>,
   stoppingIds: Set<string>,
   accounts: Account[] = [],
+  serverTags: string[] = [],
 ) {
   const runningCount = useMemo(() => profiles.filter(profile => profile.running).length, [profiles])
   const accountByProfileId = useMemo(() => indexAccountsByProfileId(accounts), [accounts])
   const allTags = useMemo(() => {
     const set = new Set<string>()
     profiles.forEach(profile => profile.tags?.forEach(tag => set.add(tag)))
+    serverTags.forEach(tag => { if (tag.trim()) set.add(tag.trim()) })
     return Array.from(set).sort()
-  }, [profiles])
+  }, [profiles, serverTags])
 
   const defaultCore = useMemo(() => {
     return cores.find(core => core.isDefault) || cores[0] || null

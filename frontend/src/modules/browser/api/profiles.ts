@@ -143,6 +143,32 @@ export async function fetchAllTags(): Promise<string[]> {
   return Array.from(tags).sort()
 }
 
+export async function fetchKnownTags(): Promise<string[]> {
+  const bindings: any = await getBindings()
+  if (bindings?.BrowserListTags) {
+    return (await bindings.BrowserListTags()) || []
+  }
+  return []
+}
+
+export async function createBrowserTag(tag: string): Promise<boolean> {
+  const bindings: any = await getBindings()
+  if (bindings?.BrowserCreateTag) {
+    await bindings.BrowserCreateTag(tag)
+    return true
+  }
+  return true
+}
+
+export async function deleteBrowserTag(tag: string): Promise<boolean> {
+  const bindings: any = await getBindings()
+  if (bindings?.BrowserDeleteTag) {
+    await bindings.BrowserDeleteTag(tag)
+    return true
+  }
+  return true
+}
+
 export async function exportBrowserProfilePackage(profileIds: string[]): Promise<BrowserProfilePackageExportResult> {
   const bindings: any = await getBindings()
   if (bindings?.BrowserProfilePackageExport) {

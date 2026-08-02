@@ -48,7 +48,7 @@ func (m *Manager) ListByTag(tag string) []Profile {
 	return result
 }
 
-// GetAllTags 获取所有已使用的标签（去重排序）
+// GetAllTags 获取所有已使用的标签（实例标签 + 标签注册表，去重排序）
 func (m *Manager) GetAllTags() []string {
 	m.InitData()
 	m.Mutex.Lock()
@@ -60,6 +60,45 @@ func (m *Manager) GetAllTags() []string {
 			if t != "" {
 				seen[t] = struct{}{}
 			}
+		}
+	}
+	if m.TagRegistry != nil {
+		if registry, err := m.TagRegistry.List(); err == nil {
+			for _, t := range registry {
+				t = strings.TrimSpace(t)
+				if t != "" {
+					seen[t] = struct{}{}
+				}
+			}
+		}
+	}
+	tags := make([]string, 0, len(seen))
+	for t := range seen {
+		tags = append(tags, t)
+	}
+	sort.Strings(tags)
+	return tags
+}
+
+// ListTags 获取标签注册表中的全部标签（仅注册表，不含实例标签，去重排序）。
+// 供标签管理页与实例列表筛选项使用：它们各自已持有实例标签（profiles），
+// 只需补上注册表中“新建但尚未挂到实例”的标签。
+func (m *Manager) ListTags() []string {
+	m.InitData()
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+	if m.TagRegistry == nil {
+		return []string{}
+	}
+	registry, err := m.TagRegistry.List()
+	if err != nil {
+		return []string{}
+	}
+	seen := make(map[string]struct{})
+	for _, t := range registry {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			seen[t] = struct{}{}
 		}
 	}
 	tags := make([]string, 0, len(seen))

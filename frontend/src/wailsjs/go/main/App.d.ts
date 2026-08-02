@@ -155,6 +155,10 @@ export function BrowserExtensionSetEnabled(arg1:string,arg2:boolean):Promise<bro
 
 export function BrowserGetAllTags():Promise<Array<string>>;
 
+export function BrowserCreateTag(arg1:string):Promise<void>;
+
+export function BrowserDeleteTag(arg1:string):Promise<void>;
+
 export function BrowserGetCookies(arg1:string):Promise<Array<backend.CookieInfo>>;
 
 export function BrowserInstanceGetTabs(arg1:string):Promise<Array<browser.Tab>>;
@@ -176,6 +180,8 @@ export function BrowserInstanceStartWithParams(arg1:string,arg2:Array<string>,ar
 export function BrowserInstanceStatus(arg1:string):Promise<browser.Profile>;
 
 export function BrowserInstanceStop(arg1:string):Promise<browser.Profile>;
+
+export function BrowserListTags():Promise<Array<string>>;
 
 export function BrowserProfileBatchRemoveTags(arg1:Array<string>,arg2:Array<string>):Promise<void>;
 

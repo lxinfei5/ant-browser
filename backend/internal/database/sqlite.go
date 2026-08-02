@@ -292,6 +292,17 @@ var migrations = []migration{
 			`ALTER TABLE browser_profiles ADD COLUMN restore_last_session TEXT NOT NULL DEFAULT ''`,
 		},
 	},
+	{
+		version: 18,
+		desc:    "添加标签注册表 browser_tags（标签管理持久化）",
+		stmts: []string{
+			`CREATE TABLE IF NOT EXISTS browser_tags (
+				tag_name   TEXT PRIMARY KEY,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`,
+			`CREATE INDEX IF NOT EXISTS idx_browser_tags_created_at ON browser_tags(created_at)`,
+		},
+	},
 	// ── 新版本在此追加，格式：
 	// {
 	//     version: 4,

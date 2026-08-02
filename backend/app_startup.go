@@ -141,6 +141,7 @@ func (a *App) startupInitManagers(cfg *config.Config, db *database.DB) {
 	a.browserMgr.BookmarkDAO = browser.NewSQLiteBookmarkDAO(conn)
 	a.browserMgr.GroupDAO = browser.NewSQLiteGroupDAO(conn)
 	a.browserMgr.ExtensionDAO = browser.NewSQLiteExtensionDAO(conn)
+	a.browserMgr.TagRegistry = browser.NewSQLiteTagRegistryDAO(conn)
 	accountDAO := accountpool.NewSQLiteAccountDAO(conn)
 	a.accountPool = accountpool.NewAccountPoolService(accountDAO)
 	a.accountPool.SetLeaseDAO(accountpool.NewSQLiteLeaseDAO(conn))

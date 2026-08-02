@@ -2,8 +2,10 @@ package backend
 
 import (
 	"ant-chrome/backend/internal/browser"
+	"ant-chrome/backend/internal/accountpool"
 	"ant-chrome/backend/internal/config"
 	"ant-chrome/backend/internal/logger"
+	"sort"
 	"strings"
 	"time"
 )
@@ -27,9 +29,39 @@ func (a *App) BrowserProfileListByTag(tag string) []BrowserProfile {
 	return a.browserMgr.ListByTag(tag)
 }
 
-// BrowserGetAllTags 获取所有已使用的标签
+// BrowserGetAllTags 获取所有可用的标签（实例标签 + 标签注册表 + 账号标签，去重排序）。
+// 账号标签并入建议源，使账号池中已使用（如 opencode）的标签在实例编辑器里可直接选到。
 func (a *App) BrowserGetAllTags() []string {
-	return a.browserMgr.GetAllTags()
+	seen := make(map[string]struct{})
+	for _, t := range a.browserMgr.GetAllTags() {
+		t = strings.TrimSpace(t)
+		if t != "" {
+			seen[t] = struct{}{}
+		}
+	}
+	if a.accountPool != nil {
+		if accounts, err := a.accountPool.List(accountpool.AccountFilter{}); err == nil {
+			for _, acc := range accounts {
+				for _, t := range acc.Tags {
+					t = strings.TrimSpace(t)
+					if t != "" {
+						seen[t] = struct{}{}
+					}
+				}
+			}
+		}
+	}
+	tags := make([]string, 0, len(seen))
+	for t := range seen {
+		tags = append(tags, t)
+	}
+	sort.Strings(tags)
+	return tags
+}
+
+// BrowserListTags 获取标签注册表中的全部标签（标签管理页 / 实例列表筛选项使用）
+func (a *App) BrowserListTags() []string {
+	return a.browserMgr.ListTags()
 }
 
 // BrowserProfileSetKeywords 设置实例关键字

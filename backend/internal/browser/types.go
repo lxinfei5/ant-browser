@@ -157,6 +157,7 @@ type Manager struct {
 	BookmarkDAO  BookmarkDAO
 	GroupDAO     GroupDAO
 	ExtensionDAO ExtensionDAO
+	TagRegistry  TagRegistryDAO
 }
 
 // XrayBridge Xray 桥接进程

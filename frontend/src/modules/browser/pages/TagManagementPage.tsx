@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, Tag, Trash2, X } from 'lucide-react'
 import { Badge, Button, Card, toast } from '../../../shared/components'
 import type { BrowserProfile } from '../types'
-import { batchRemoveProfileTags, batchSetProfileTags, fetchBrowserProfiles, renameBrowserTag } from '../api'
+import { batchRemoveProfileTags, batchSetProfileTags, createBrowserTag, deleteBrowserTag, fetchBrowserProfiles, fetchKnownTags, renameBrowserTag } from '../api'
 
 // ─── 左侧标签面板 ────────────────────────────────────────────────────────────
 
@@ -14,9 +14,10 @@ interface TagPanelProps {
   onSelect: (tag: string | null) => void
   onCreateTag: (tag: string) => void
   onRenameTag: (oldName: string, newName: string) => void
+  onDeleteTag: (tag: string) => void
 }
 
-function TagPanel({ tags, selected, profilesByTag, totalCount, onSelect, onCreateTag, onRenameTag }: TagPanelProps) {
+function TagPanel({ tags, selected, profilesByTag, totalCount, onSelect, onCreateTag, onRenameTag, onDeleteTag }: TagPanelProps) {
   const [creating, setCreating] = useState(false)
   const [newTag, setNewTag] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -107,7 +108,17 @@ function TagPanel({ tags, selected, profilesByTag, totalCount, onSelect, onCreat
             )}
 
             {editingTag !== tag && (
-              <span className="text-xs opacity-60 shrink-0">{profilesByTag[tag] ?? 0}</span>
+              <span className="flex items-center gap-1 shrink-0">
+                <span className="text-xs opacity-60">{profilesByTag[tag] ?? 0}</span>
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); onDeleteTag(tag) }}
+                  title="删除标签（从所有实例移除）"
+                  className="opacity-0 group-hover:opacity-100 text-[var(--color-text-muted)] hover:text-[var(--color-error)] transition-opacity"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </span>
             )}
           </div>
         ))}
@@ -206,20 +217,55 @@ export function TagManagementPage() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
-  // 用户新建但尚未分配给任何实例的标签（纯前端暂存）
+  // 标签注册表中的已注册标签（新建但尚未挂到任何实例，持久化在 backend browser_tags 表）
+  const [serverTags, setServerTags] = useState<string[]>([])
+  // 创建失败时兜底的临时标签（纯前端暂存）
   const [pendingTags, setPendingTags] = useState<string[]>([])
 
-  // 合并：实例已有标签 + 用户新建的待分配标签
+  // 合并：实例已有标签 + 注册表标签 + 创建失败的待分配标签
   const allTagsWithPending = useMemo(() => {
     const set = new Set<string>()
     profiles.forEach(p => p.tags?.forEach(t => set.add(t)))
+    serverTags.forEach(t => set.add(t))
     pendingTags.forEach(t => set.add(t))
     return Array.from(set).sort()
-  }, [profiles, pendingTags])
+  }, [profiles, serverTags, pendingTags])
 
-  const handleCreateTag = (tag: string) => {
-    if (!allTagsWithPending.includes(tag)) {
-      setPendingTags(prev => [...prev, tag])
+  const handleCreateTag = async (tag: string) => {
+    const trimmed = tag.trim()
+    if (!trimmed || allTagsWithPending.includes(trimmed)) return
+    setSaving(true)
+    try {
+      await createBrowserTag(trimmed)
+      toast.success(`已创建标签：${trimmed}`)
+      setSelectedTag(trimmed)
+      await load()
+    } catch (e: any) {
+      toast.error(e?.message || '创建标签失败')
+      setPendingTags(prev => [...prev, trimmed])
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDeleteTag = async (tag: string) => {
+    setSaving(true)
+    try {
+      // 从标签注册表删除，并从所有实例移除
+      await deleteBrowserTag(tag)
+      const affectedIds = profiles
+        .filter(p => p.tags?.includes(tag))
+        .map(p => p.profileId)
+      if (affectedIds.length > 0) {
+        await batchRemoveProfileTags(affectedIds, [tag])
+      }
+      toast.success(`已删除标签：${tag}`)
+      if (selectedTag === tag) setSelectedTag(null)
+      await load()
+    } catch (e: any) {
+      toast.error(e?.message || '删除标签失败')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -228,6 +274,9 @@ export function TagManagementPage() {
     try {
       const data = await fetchBrowserProfiles()
       setProfiles(data)
+      try {
+        setServerTags(await fetchKnownTags())
+      } catch { setServerTags([]) }
       // 清理已被实例使用的 pendingTags
       const usedTags = new Set<string>()
       data.forEach(p => p.tags?.forEach(t => usedTags.add(t)))
@@ -326,6 +375,7 @@ export function TagManagementPage() {
         onSelect={setSelectedTag}
         onCreateTag={handleCreateTag}
         onRenameTag={handleRenameTag}
+        onDeleteTag={handleDeleteTag}
       />
 
       {/* 右侧内容区 */}

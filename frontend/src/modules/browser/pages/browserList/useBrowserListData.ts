@@ -1,6 +1,6 @@
 ﻿import { useEffect, useRef, useState } from 'react'
 import type { Account, BrowserGroupWithCount, BrowserProfile, BrowserProxy } from '../../types'
-import { fetchBrowserProfiles, fetchBrowserProxies, fetchGroups } from '../../api'
+import { fetchBrowserProfiles, fetchBrowserProxies, fetchGroups, fetchKnownTags } from '../../api'
 import { listAccounts } from '../../api/accounts'
 import { EventsOn } from '../../../../wailsjs/runtime/runtime'
 
@@ -11,6 +11,7 @@ interface UseBrowserListDataOptions {
 export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
   const [profiles, setProfiles] = useState<BrowserProfile[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [serverTags, setServerTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [proxies, setProxies] = useState<BrowserProxy[]>([])
   const [groups, setGroups] = useState<BrowserGroupWithCount[]>([])
@@ -99,6 +100,12 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
     } catch { /* 账号池不可用时忽略 */ }
   }
 
+  const loadTags = async () => {
+    try {
+      setServerTags(await fetchKnownTags())
+    } catch { setServerTags([]) }
+  }
+
   const loadGroups = async () => {
     setGroups(await fetchGroups())
   }
@@ -111,6 +118,7 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
     void loadProfiles()
     loadGroups()
     loadAccounts()
+    loadTags()
     fetchBrowserProxies().then(setProxies)
     loadCores()
 
@@ -155,6 +163,7 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
   return {
     profiles,
     accounts,
+    serverTags,
     loading,
     proxies,
     groups,
@@ -168,5 +177,6 @@ export function useBrowserListData({ loadCores }: UseBrowserListDataOptions) {
     updateProxiesState,
     loadProfiles,
     loadAccounts,
+    loadTags,
   }
 }
