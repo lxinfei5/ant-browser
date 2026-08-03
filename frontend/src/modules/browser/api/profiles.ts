@@ -163,6 +163,7 @@ export async function createBrowserTag(tag: string): Promise<boolean> {
 export async function deleteBrowserTag(tag: string): Promise<boolean> {
   const bindings: any = await getBindings()
   if (bindings?.BrowserDeleteTag) {
+    // 后端已升级为「三清」:一次调用同时从注册表 + 所有实例 + 所有账号移除该标签(大小写不敏感)。
     await bindings.BrowserDeleteTag(tag)
     return true
   }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"ant-chrome/backend/internal/tagutil"
 )
 
 // AccountDAO 账号持久化接口
@@ -206,18 +208,10 @@ func scanAccount(s scanner) (*Account, error) {
 	return &a, nil
 }
 
+// normalizeTags 账号标签归一:trim + 小写 + 去重(统一走 tagutil,与实例标签/注册表同一口径)。
+// Upsert 写库前调用,保证账号标签也只存小写一种写法。
 func normalizeTags(tags []string) []string {
-	if len(tags) == 0 {
-		return []string{}
-	}
-	out := make([]string, 0, len(tags))
-	for _, t := range tags {
-		v := strings.TrimSpace(t)
-		if v != "" {
-			out = append(out, v)
-		}
-	}
-	return out
+	return tagutil.NormalizeAll(tags)
 }
 
 // sqlRunner 抽象 *sql.DB 与 *sql.Tx 共同实现的执行接口，使租约 DAO 方法既可走事务也可走单连接。

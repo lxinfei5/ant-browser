@@ -4,7 +4,7 @@ import { Badge, Button, Card, toast } from '../../../shared/components'
 import type { BrowserProfile } from '../types'
 import { batchRemoveProfileTags, batchSetProfileTags, createBrowserTag, deleteBrowserTag, fetchBrowserProfiles, fetchKnownTags, renameBrowserTag } from '../api'
 import { listAccounts, indexAccountsByProfileId } from '../api/accounts'
-import { mergeTags, tagEquals, tagsContain } from '../utils/tagMatch'
+import { mergeTags, normalizeTag, tagEquals, tagsContain } from '../utils/tagMatch'
 
 // ─── 左侧标签面板 ────────────────────────────────────────────────────────────
 
@@ -164,7 +164,8 @@ function ActionBar({ selectedCount, allTags, onAddTags, onRemoveTags, onClear }:
   if (selectedCount === 0) return null
 
   const handleAdd = () => {
-    const tags = addInput.split(/[,，\s]+/).map(t => t.trim()).filter(Boolean)
+    // 小写化,与后端强制小写存储对齐,即时回显即为最终形态
+    const tags = addInput.split(/[,，\s]+/).map(t => t.trim().toLowerCase()).filter(Boolean)
     if (!tags.length) return
     onAddTags(tags)
     setAddInput('')
@@ -238,7 +239,8 @@ export function TagManagementPage() {
   }, [profiles, serverTags, pendingTags, accountTagsByProfileId])
 
   const handleCreateTag = async (tag: string) => {
-    const trimmed = tag.trim()
+    // 强制小写(与后端归一一致),同一标签全库只保留小写一种写法
+    const trimmed = normalizeTag(tag)
     if (!trimmed || allTagsWithPending.some(t => tagEquals(t, trimmed))) return
     setSaving(true)
     try {
@@ -257,21 +259,18 @@ export function TagManagementPage() {
   const handleDeleteTag = async (tag: string) => {
     setSaving(true)
     try {
-      // 从标签注册表删除，并从所有实例移除（决策 1：不触碰账号上的同名标签）
-      // 注：后端 BatchRemoveTags 按精确匹配移除，故这里也用精确匹配保持一致；
-      // 同标签不同大小写的边缘场景不在本次范围内（查找/计数已大小写不敏感）。
+      // 三清:后端在一次调用里同时从「注册表 + 所有实例 + 所有账号」移除该标签(大小写不敏感)。
+      // 不再像旧版只删注册表/实例——那会让残留在其它源的标签在 load() 聚合时复活,表现为删不掉。
       await deleteBrowserTag(tag)
-      const affectedIds = profiles
-        .filter(p => p.tags?.includes(tag))
-        .map(p => p.profileId)
-      if (affectedIds.length > 0) {
-        await batchRemoveProfileTags(affectedIds, [tag])
-      }
-      toast.success(`已删除标签：${tag}`)
-      if (selectedTag === tag) setSelectedTag(null)
+      // 一并清理前端兜底的 pendingTags(创建失败暂存的标签,后端删不到)
+      setPendingTags(prev => prev.filter(t => !tagEquals(t, tag)))
+      if (selectedTag && tagEquals(selectedTag, tag)) setSelectedTag(null)
       await load()
+      toast.success(`已删除标签：${tag}`)
     } catch (e: any) {
       toast.error(e?.message || '删除标签失败')
+      // 部分失败也刷新,展示后端实际收敛到的状态(删除幂等,可重试)
+      await load()
     } finally {
       setSaving(false)
     }
@@ -294,10 +293,10 @@ export function TagManagementPage() {
         }
         setAccountTagsByProfileId(accountMap)
       } catch { setAccountTagsByProfileId(new Map()) }
-      // 清理已被实例使用的 pendingTags
+      // 清理已被实例使用的 pendingTags(按归一值比较,与强制小写后的存储对齐)
       const usedTags = new Set<string>()
-      data.forEach(p => p.tags?.forEach(t => usedTags.add(t)))
-      setPendingTags(prev => prev.filter(t => !usedTags.has(t)))
+      data.forEach(p => p.tags?.forEach(t => usedTags.add(normalizeTag(t))))
+      setPendingTags(prev => prev.filter(t => !usedTags.has(normalizeTag(t))))
     } finally { setLoading(false) }
   }
 
@@ -368,20 +367,21 @@ export function TagManagementPage() {
 
   // 重命名标签
   const handleRenameTag = async (oldName: string, newName: string) => {
-    if (oldName === newName || !newName.trim()) return
-    if (allTags.some(t => tagEquals(t, newName.trim()))) {
+    const normalized = normalizeTag(newName)
+    if (oldName === normalized || !normalized) return
+    if (allTags.some(t => tagEquals(t, normalized))) {
       toast.error('标签名称已存在')
       return
     }
     setSaving(true)
     try {
-      await renameBrowserTag(oldName, newName.trim())
+      await renameBrowserTag(oldName, normalized)
       toast.success('标签重命名成功')
       if (pendingTags.includes(oldName)) {
-        setPendingTags(prev => prev.map(t => t === oldName ? newName.trim() : t))
+        setPendingTags(prev => prev.map(t => t === oldName ? normalized : t))
       }
       if (selectedTag === oldName) {
-        setSelectedTag(newName.trim())
+        setSelectedTag(normalized)
       }
       await load()
     } catch (e: any) {

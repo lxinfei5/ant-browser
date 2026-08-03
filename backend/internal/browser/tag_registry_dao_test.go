@@ -21,6 +21,40 @@ func newTestTagRegistry(t *testing.T) TagRegistryDAO {
 	return NewSQLiteTagRegistryDAO(db.GetConn())
 }
 
+func TestSQLiteTagRegistryDAO_CaseInsensitiveEnsureDelete(t *testing.T) {
+	dao := newTestTagRegistry(t)
+
+	// DAO 自卫:Ensure 入口小写化,不同 casing 归并为同一行
+	if err := dao.Ensure("OpenCode"); err != nil {
+		t.Fatalf("Ensure returned error: %v", err)
+	}
+	if err := dao.Ensure("opencode"); err != nil {
+		t.Fatalf("Ensure(lower) returned error: %v", err)
+	}
+	if err := dao.Ensure(" OPENCODE "); err != nil {
+		t.Fatalf("Ensure(upper+space) returned error: %v", err)
+	}
+	tags, err := dao.List()
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if want := []string{"opencode"}; !reflect.DeepEqual(tags, want) {
+		t.Fatalf("List = %v, want %v (大小写变体应归并为一行)", tags, want)
+	}
+
+	// Delete 任意 casing 都能删掉(NOCASE 主键 + DAO 归一双保险)
+	if err := dao.Delete("OPENCODE"); err != nil {
+		t.Fatalf("Delete returned error: %v", err)
+	}
+	tags, err = dao.List()
+	if err != nil {
+		t.Fatalf("List after delete returned error: %v", err)
+	}
+	if len(tags) != 0 {
+		t.Fatalf("List after delete = %v, want empty", tags)
+	}
+}
+
 func TestSQLiteTagRegistryDAO_EnsureListDelete(t *testing.T) {
 	dao := newTestTagRegistry(t)
 

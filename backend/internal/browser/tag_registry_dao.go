@@ -29,8 +29,13 @@ func NewSQLiteTagRegistryDAO(db *sql.DB) *SQLiteTagRegistryDAO {
 	return &SQLiteTagRegistryDAO{db: db}
 }
 
-// Ensure 幂等注册标签
+// Ensure 幂等注册标签。DAO 层自卫:入库前 trim + 转小写,保证注册表不混入大小写/空白变体
+// (配合 browser_tags.tag_name 的 COLLATE NOCASE 主键双保险)。空标签直接忽略。
 func (d *SQLiteTagRegistryDAO) Ensure(tagName string) error {
+	tagName = strings.ToLower(strings.TrimSpace(tagName))
+	if tagName == "" {
+		return nil
+	}
 	_, err := d.db.Exec(`INSERT OR IGNORE INTO browser_tags (tag_name) VALUES (?)`, tagName)
 	if err != nil {
 		return fmt.Errorf("保存标签失败: %w", err)
@@ -38,8 +43,12 @@ func (d *SQLiteTagRegistryDAO) Ensure(tagName string) error {
 	return nil
 }
 
-// Delete 删除注册表标签
+// Delete 删除注册表标签。同样先 trim + 转小写,与 Ensure 口径一致(并有 NOCASE 主键兜底)。
 func (d *SQLiteTagRegistryDAO) Delete(tagName string) error {
+	tagName = strings.ToLower(strings.TrimSpace(tagName))
+	if tagName == "" {
+		return nil
+	}
 	_, err := d.db.Exec(`DELETE FROM browser_tags WHERE tag_name = ?`, tagName)
 	if err != nil {
 		return fmt.Errorf("删除标签失败: %w", err)

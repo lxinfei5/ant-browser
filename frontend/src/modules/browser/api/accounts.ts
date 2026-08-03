@@ -158,6 +158,8 @@ export async function cooldownAccountsByProxy(
 }
 
 // 便捷工具：按 boundProfileId 建立映射
+// 注意:同一 profileId 只保留列表首条;后端 DAO 按 created_at ASC 排序,首条实为「最旧」一条账号。
+// 因此一个实例绑定多个账号时,只有其一的标签参与标签册反查/筛选——已知限制,非主路径,暂未处理。
 export function indexAccountsByProfileId(accounts: Account[]): Map<string, Account> {
   const map = new Map<string, Account>()
   accounts.forEach((account) => {

@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"ant-chrome/backend/internal/tagutil"
+
 	"github.com/google/uuid"
 )
 
@@ -133,6 +135,46 @@ func (s *AccountPoolService) Update(accountID string, input AccountInput) (*Acco
 		return nil, err
 	}
 	return s.dao.GetByID(accountID)
+}
+
+// RemoveTagFromAll 从全部账号的 tags 中移除指定标签(大小写、空白不敏感)。
+// 用于「删除标签三清」中的账号一清。返回受影响账号数;单个账号 Upsert 失败不中断,
+// 累计后随受影响数一并返回(尽力而为,幂等,可安全重试收敛)。软删账号不在 List 内,不受影响。
+func (s *AccountPoolService) RemoveTagFromAll(tag string) (int, error) {
+	if tagutil.Normalize(tag) == "" {
+		return 0, nil
+	}
+	accounts, err := s.dao.List(AccountFilter{})
+	if err != nil {
+		return 0, err
+	}
+	affected := 0
+	var firstErr error
+	failCount := 0
+	for _, acc := range accounts {
+		if !tagutil.ContainsFold(acc.Tags, tag) {
+			continue
+		}
+		filtered := acc.Tags[:0]
+		for _, t := range acc.Tags {
+			if tagutil.Normalize(t) != tagutil.Normalize(tag) {
+				filtered = append(filtered, t)
+			}
+		}
+		acc.Tags = filtered
+		if err := s.dao.Upsert(acc); err != nil {
+			failCount++
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		affected++
+	}
+	if firstErr != nil {
+		return affected, fmt.Errorf("移除账号标签部分失败(%d 个失败): %w", failCount, firstErr)
+	}
+	return affected, nil
 }
 
 // Delete 软删除账号

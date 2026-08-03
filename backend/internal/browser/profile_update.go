@@ -47,7 +47,7 @@ func (m *Manager) Update(profileId string, input ProfileInput) (*Profile, error)
 		)
 	}
 	profile.LaunchArgs = input.LaunchArgs
-	profile.Tags = input.Tags
+	profile.Tags = NormalizeTags(input.Tags)
 	profile.Keywords = append([]string{}, input.Keywords...)
 	profile.GroupId = buildProfileGroupID(input.GroupId)
 	profile.UpdatedAt = time.Now().Format(time.RFC3339)
@@ -56,6 +56,7 @@ func (m *Manager) Update(profileId string, input ProfileInput) (*Profile, error)
 	if err := m.SaveProfiles(); err != nil {
 		return nil, err
 	}
+	m.ensureRegisteredTags(profile.Tags)
 	return profile, nil
 }
 

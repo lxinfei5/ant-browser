@@ -10,7 +10,8 @@ import (
 
 // DB 数据库连接
 type DB struct {
-	conn *sql.DB
+	conn   *sql.DB
+	dbPath string
 }
 
 // migration 单个版本迁移
@@ -303,6 +304,31 @@ var migrations = []migration{
 			`CREATE INDEX IF NOT EXISTS idx_browser_tags_created_at ON browser_tags(created_at)`,
 		},
 	},
+	{
+		version: 19,
+		desc:    "标签系统归一：browser_tags 重建为 COLLATE NOCASE 主键，历史标签预去重",
+		stmts: []string{
+			// 防御:极老库可能缺 browser_tags(v18 正常已建,这里双保险,避免 INSERT...SELECT 缺表报错)
+			`CREATE TABLE IF NOT EXISTS browser_tags (
+				tag_name   TEXT PRIMARY KEY,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`,
+			// SQLite 不能就地修改列 collation,需 建新表-拷贝-删旧-改名。整个版本在单事务内,失败整体回滚。
+			`CREATE TABLE browser_tags_v19 (
+				tag_name   TEXT PRIMARY KEY COLLATE NOCASE,
+				created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			)`,
+			// 拷贝并做 ASCII 预去重(LOWER/TRIM 仅 ASCII;Unicode 大小写变体由随后的 Go 矫正 NormalizeStoredTags 收口)
+			`INSERT OR IGNORE INTO browser_tags_v19 (tag_name, created_at)
+				SELECT LOWER(TRIM(tag_name)), MIN(created_at)
+				FROM browser_tags
+				WHERE TRIM(tag_name) <> ''
+				GROUP BY LOWER(TRIM(tag_name))`,
+			`DROP TABLE browser_tags`,
+			`ALTER TABLE browser_tags_v19 RENAME TO browser_tags`,
+			`CREATE INDEX IF NOT EXISTS idx_browser_tags_created_at ON browser_tags(created_at)`,
+		},
+	},
 	// ── 新版本在此追加，格式：
 	// {
 	//     version: 4,
@@ -336,7 +362,7 @@ func NewDB(dbPath string) (*DB, error) {
 		return nil, fmt.Errorf("开启外键约束失败: %w", err)
 	}
 
-	return &DB{conn: conn}, nil
+	return &DB{conn: conn, dbPath: dbPath}, nil
 }
 
 // GetConn 获取数据库连接
@@ -388,6 +414,16 @@ func (db *DB) Migrate() error {
 	// 在迁移结束后做一次幂等自愈，避免实例表无法加载。
 	if err := db.ensureCriticalBrowserProfileColumns(); err != nil {
 		return fmt.Errorf("校验 browser_profiles 关键列失败: %w", err)
+	}
+
+	// 标签系统归一(v19 起):把实例/账号/注册表三处历史标签矫正为 trim+小写+去重。
+	// 该改写不可逆(丢失原 casing),首次执行前对 DB 做一次物理备份(已存在则跳过)。
+	// 幂等,每次启动重跑直至收敛;startup 对本错误仅记录日志、不阻断应用。
+	if db.dbPath != "" {
+		_ = backupDatabaseFile(db.dbPath, ".pre-v19-tag-normalize.bak")
+	}
+	if err := db.NormalizeStoredTags(); err != nil {
+		return fmt.Errorf("标签数据归一矫正失败: %w", err)
 	}
 
 	return nil

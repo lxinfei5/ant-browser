@@ -47,7 +47,7 @@ func (m *Manager) Create(input ProfileInput) (*Profile, error) {
 		ProxyConfig:        resolvedProxy.ProxyConfig,
 		MemoryLimitMB:      normalizeMemoryLimitMB(input.MemoryLimitMB),
 		LaunchArgs:         input.LaunchArgs,
-		Tags:               input.Tags,
+		Tags:               NormalizeTags(input.Tags),
 		Keywords:           append([]string{}, input.Keywords...),
 		GroupId:            strings.TrimSpace(input.GroupId),
 		Running:            false,
@@ -73,6 +73,7 @@ func (m *Manager) Create(input ProfileInput) (*Profile, error) {
 	if err := m.SaveProfiles(); err != nil {
 		return nil, err
 	}
+	m.ensureRegisteredTags(profile.Tags)
 	m.ensureProfileLaunchCode(profile)
 	return profile, nil
 }

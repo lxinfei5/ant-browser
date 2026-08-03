@@ -44,9 +44,9 @@ export function TagInput({ value, onChange, suggestions = [], placeholder = '输
     if (!trimmed) return
     // 大小写不敏感去重：已存在等价标签则忽略
     if (value.some(v => normalizeTag(v) === normalizeTag(trimmed))) return
-    // 若输入能大小写不敏感命中某个建议，存建议的原值，避免与注册表/已有标签产生 casing 分叉
+    // 若输入能大小写不敏感命中某个建议，存建议的原值；否则小写化(与后端强制小写存储对齐,回显即最终形态)
     const matched = suggestions.find(s => normalizeTag(s) === normalizeTag(trimmed))
-    const display = matched ?? trimmed
+    const display = matched ?? trimmed.toLowerCase()
     if (value.some(v => normalizeTag(v) === normalizeTag(display))) return
     onChange([...value, display])
     setInput('')
