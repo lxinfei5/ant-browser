@@ -9,6 +9,7 @@ import type { TableColumn } from '../../../shared/components/Table'
 import type { BrowserCore, BrowserProfile, BrowserProxy, ProxySpeedTestResult } from '../types'
 import { browserProxyTestSpeed, testProxyConnectivity } from '../api'
 import { indexAccountsByProfileId, platformLabel } from '../api/accounts'
+import { tagsContain } from '../utils/tagMatch'
 import type { Account } from '../types'
 import type { BrowserViewMode } from './BrowserListLayout'
 import { KeywordInlineRow, LaunchCodeCell } from './BrowserListWidgets'
@@ -281,6 +282,7 @@ function ProfileMoreActions({
 function BrowserProfileCard({
   profile,
   proxy,
+  account,
   isSelected,
   status,
   coreLabel,
@@ -300,6 +302,7 @@ function BrowserProfileCard({
 }: {
   profile: BrowserProfile
   proxy: BrowserProxy | undefined
+  account?: Account
   isSelected: boolean
   status: ProfileStatus
   coreLabel: string
@@ -317,6 +320,8 @@ function BrowserProfileCard({
   onOpenProxyPicker: (profile: BrowserProfile) => void
   onDelete: (profileId: string) => void
 }) {
+  // 账号继承的标签：账号有、但实例自身没有（大小写不敏感），与实例标签分开显示
+  const accountOnlyTags = (account?.tags || []).filter(t => !tagsContain(profile.tags, t))
   return (
     <div
       className={`relative flex flex-col border rounded-xl bg-[var(--color-bg-surface)] p-3 shadow-[0_1px_4px_rgba(0,0,0,0.08)] transition-all duration-200 h-[320px] overflow-visible
@@ -325,7 +330,7 @@ function BrowserProfileCard({
     >
       <div className="flex flex-col gap-3 pb-3 border-b border-[var(--color-border-muted)]/50 shrink-0">
         <div className="flex justify-between items-start gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             <input
               type="checkbox"
               className="w-4 h-4 rounded cursor-pointer accent-[var(--color-accent)] mt-0.5 shrink-0"
@@ -336,8 +341,13 @@ function BrowserProfileCard({
               {profile.profileName}
             </Link>
             {profile.tags && profile.tags.length > 0 && (
-              <div className="flex gap-1 ml-1">
+              <div className="flex flex-wrap gap-1 ml-1 min-w-0" title={`实例标签：${profile.tags.join('、')}`}>
                 {profile.tags.map(tag => <Badge variant="default" key={tag}>{tag}</Badge>)}
+              </div>
+            )}
+            {accountOnlyTags.length > 0 && (
+              <div className="flex flex-wrap gap-1 min-w-0" title={`账号标签（来自 ${account?.accountRef || '绑定账号'}）：${accountOnlyTags.join('、')}`}>
+                {accountOnlyTags.map(tag => <Badge variant="info" key={tag}>{tag}</Badge>)}
               </div>
             )}
           </div>
@@ -484,19 +494,28 @@ export function BrowserProfilesPanel({
       key: 'profileName',
       title: '实例名称',
       width: 320,
-      render: (value, record) => (
-        <div className="flex min-w-[260px] items-center gap-2 whitespace-nowrap">
-          <Link className="block min-w-0 truncate text-[var(--color-accent)] text-sm font-medium hover:underline" to={`/browser/detail/${record.profileId}`} title={String(value || '')}>
-            {value}
-          </Link>
-          {record.tags && record.tags.length > 0 && (
-            <div className="flex shrink-0 gap-1 overflow-hidden">
-              {record.tags.slice(0, 2).map(tag => <Badge variant="default" key={tag}>{tag}</Badge>)}
-              {record.tags.length > 2 && <Badge variant="default">+{record.tags.length - 2}</Badge>}
-            </div>
-          )}
-        </div>
-      ),
+      render: (value, record) => {
+        const account = accountByProfileId.get(record.profileId)
+        // 账号继承的标签：账号有、但实例自身没有（大小写不敏感），与实例标签分开显示
+        const accountOnlyTags = (account?.tags || []).filter(t => !tagsContain(record.tags, t))
+        return (
+          <div className="flex min-w-[260px] flex-wrap items-center gap-x-2 gap-y-1">
+            <Link className="block min-w-0 truncate text-[var(--color-accent)] text-sm font-medium hover:underline" to={`/browser/detail/${record.profileId}`} title={String(value || '')}>
+              {value}
+            </Link>
+            {record.tags && record.tags.length > 0 && (
+              <div className="flex min-w-0 flex-wrap gap-1" title={`实例标签：${record.tags.join('、')}`}>
+                {record.tags.map(tag => <Badge variant="default" key={tag}>{tag}</Badge>)}
+              </div>
+            )}
+            {accountOnlyTags.length > 0 && (
+              <div className="flex min-w-0 flex-wrap gap-1" title={`账号标签（来自 ${account?.accountRef || '绑定账号'}）：${accountOnlyTags.join('、')}`}>
+                {accountOnlyTags.map(tag => <Badge variant="info" key={tag}>{tag}</Badge>)}
+              </div>
+            )}
+          </div>
+        )
+      },
     },
     {
       key: 'running',
@@ -635,6 +654,7 @@ export function BrowserProfilesPanel({
                 <BrowserProfileCard
                   profile={profile}
                   proxy={proxies.find(item => item.proxyId === profile.proxyId)}
+                  account={accountByProfileId.get(profile.profileId)}
                   isSelected={selectedIds.has(profile.profileId)}
                   status={getProfileStatus(profile)}
                   coreLabel={resolveProfileCore(profile)?.coreName || getProfileCoreLabel(profile)}
