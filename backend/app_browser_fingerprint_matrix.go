@@ -173,254 +173,115 @@ func (a *App) resolveBrowserCoreForFingerprintReport(coreId string) (BrowserCore
 	return a.browserMgr.GetDefaultCore()
 }
 
+// isFingerprintChromiumProprietaryArg reports CLI flags that only exist on
+// fingerprint-chromium / patched anti-detect builds. Stock Chromium and Google
+// Chrome do not implement them and they must never be passed at launch.
+func isFingerprintChromiumProprietaryArg(arg string) bool {
+	key := browserFingerprintArgKey(arg)
+	if key == "" {
+		return false
+	}
+	switch {
+	case key == "--fingerprint", strings.HasPrefix(key, "--fingerprint-"), strings.HasPrefix(key, "--fingerprinting-"):
+		return true
+	case key == "--disable-gpu-fingerprint", key == "--disable-spoofing":
+		return true
+	default:
+		return false
+	}
+}
+
+func fingerprintCapabilityLabelForArg(arg string) string {
+	key := browserFingerprintArgKey(arg)
+	if label, ok := fingerprintStableArgLabels[key]; ok {
+		return label
+	}
+	if label, ok := fingerprintNoEffectArgLabels[key]; ok {
+		return label
+	}
+	if converted, ok := fingerprintChrome144ConvertedArgLabels[key]; ok {
+		return converted.label
+	}
+	if label, ok := fingerprintChrome144RemovedArgLabels[key]; ok {
+		return label
+	}
+	if label, ok := fingerprintEffectiveNoiseArgLabels[key]; ok {
+		return label
+	}
+	switch key {
+	case "--disable-gpu-fingerprint":
+		return "GPU 伪装开关"
+	case "--disable-spoofing":
+		return "排除伪装"
+	}
+	if key != "" {
+		return key
+	}
+	return "未知参数"
+}
+
+// buildBrowserFingerprintLaunchPlan prepares launch args for stock Chromium/Chrome.
+// It never injects fingerprint-chromium seeds and always strips proprietary flags
+// so official binaries are not launched with unsupported CLI.
 func buildBrowserFingerprintLaunchPlan(profileId string, rawArgs []string, chromeVersion string) browserFingerprintLaunchPlan {
-	profileId = strings.TrimSpace(profileId)
+	_ = profileId
+	_ = chromeVersion
 	originalArgs := normalizeNonEmptyStrings(rawArgs)
 	args := normalizeBrowserLanguageArgs(originalArgs)
-	major := parseChromeMajor(chromeVersion)
-	versionStatus := fingerprintVersionStatus(chromeVersion)
-	chrome144Plus := major >= fingerprintChrome144Major
-	unknownVersion := versionStatus == "unknown"
 
 	plan := browserFingerprintLaunchPlan{
-		launchArgs: make([]string, 0, len(args)+2),
+		launchArgs: make([]string, 0, len(args)),
 		rows:       make([]BrowserFingerprintCapabilityRow, 0, len(args)+2),
-		warnings:   make([]string, 0, 2),
-	}
-	if unknownVersion {
-		plan.warnings = append(plan.warnings, "未识别内核版本，旧版指纹参数按保守模式保留")
+		warnings: []string{
+			"内核策略：官方 Chromium / Google Chrome。已移除 fingerprint-chromium 专有启动参数与自动 --fingerprint 种子注入。",
+		},
 	}
 
-	if !browserArgsHaveFingerprintSeed(args) {
-		if profileId != "" {
-			seedArg := fmt.Sprintf("--fingerprint=%d", browserFingerprintSeedForProfileID(profileId))
-			plan.launchArgs = append(plan.launchArgs, seedArg)
-			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-				Capability: "指纹种子",
-				Status:     "injected",
-				RuntimeArg: seedArg,
-				Action:     "后端补齐",
-				Note:       "配置未显式设置种子，启动时按实例 ID 生成稳定种子",
-			})
-		} else {
-			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-				Capability: "指纹种子",
-				Status:     "pending",
-				Action:     "启动时补齐",
-				Note:       "创建态没有实例 ID，保存后启动会生成稳定种子",
-			})
-		}
-	} else {
-		seedArg := browserArgWithKey(args, "--fingerprint")
-		plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-			Capability: "指纹种子",
-			Status:     "kept",
-			InputArg:   seedArg,
-			RuntimeArg: seedArg,
-			Action:     "保留",
-			Note:       "作为 144+ 随机指纹能力的统一入口",
-		})
-	}
+	plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
+		Capability: "指纹种子",
+		Status:     "unsupported_stock",
+		Action:     "不注入",
+		Note:       "官方 Chromium/Chrome 不支持 --fingerprint；实例隔离依赖独立 user-data-dir 与代理，不再注入指纹种子",
+	})
 
 	appendLanguageCompletionRows(&plan, originalArgs, args)
 
-	disableSpoofingIndex := -1
-	disableSpoofingValues := make([]string, 0, 5)
-	convertedDisableGPU := false
-	latestNoiseArgIndexes := latestFingerprintNoiseArgIndexes(args)
-
-	for index, arg := range args {
+	for _, arg := range args {
 		key := browserFingerprintArgKey(arg)
-		if key == "" {
-			plan.launchArgs = append(plan.launchArgs, arg)
-			continue
-		}
-		if chrome144Plus {
-			if runtimeArg, label, ok := fingerprintNoiseRuntimeArgForKey(key); ok && latestNoiseArgIndexes[runtimeArg] != index {
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: label,
-					Status:     "overridden",
-					InputArg:   arg,
-					Action:     "被后续配置覆盖",
-					Note:       "同一噪声能力存在后续参数，本项不进入运行参数",
-				})
-				continue
-			}
-		}
-		if key == "--disable-gpu-fingerprint" {
-			if chrome144Plus {
-				convertedDisableGPU = true
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: "GPU 伪装开关",
-					Status:     "converted",
-					InputArg:   arg,
-					RuntimeArg: "--disable-spoofing=gpu",
-					Action:     "转换",
-					Note:       "当前适配矩阵不再把旧开关作为独立运行参数，运行时合并到 --disable-spoofing",
-				})
-				continue
-			}
-			plan.launchArgs = append(plan.launchArgs, arg)
+		if isFingerprintChromiumProprietaryArg(arg) {
 			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-				Capability: "GPU 伪装开关",
-				Status:     legacyKeepStatus(unknownVersion),
+				Capability: fingerprintCapabilityLabelForArg(arg),
+				Status:     "unsupported_stock",
 				InputArg:   arg,
-				RuntimeArg: arg,
-				Action:     "保留",
-				Note:       legacyKeepNote(unknownVersion),
+				Action:     "运行时剥离",
+				Note:       "fingerprint-chromium 专有参数，官方内核不支持，启动时丢弃",
 			})
 			continue
 		}
-
-		if key == "--disable-spoofing" {
-			disableSpoofingValues = appendUniqueStringValues(disableSpoofingValues, splitCSV(browserArgValue([]string{arg}, key))...)
-			runtimeArg := arg
-			if len(disableSpoofingValues) > 0 {
-				runtimeArg = "--disable-spoofing=" + strings.Join(disableSpoofingValues, ",")
-			}
-			if disableSpoofingIndex < 0 {
-				disableSpoofingIndex = len(plan.launchArgs)
-				plan.launchArgs = append(plan.launchArgs, runtimeArg)
-			} else {
-				plan.launchArgs[disableSpoofingIndex] = runtimeArg
-			}
-			if !convertedDisableGPU {
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: "排除伪装",
-					Status:     "kept",
-					InputArg:   arg,
-					RuntimeArg: runtimeArg,
-					Action:     "保留",
-					Note:       "由内核按指定能力关闭伪装",
-				})
-			}
-			continue
-		}
-
-		if converted, ok := fingerprintChrome144ConvertedArgLabels[key]; ok {
-			if chrome144Plus && browserFingerprintArgEnabled(arg) {
-				plan.launchArgs = append(plan.launchArgs, converted.runtimeArg)
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: converted.label,
-					Status:     "converted",
-					InputArg:   arg,
-					RuntimeArg: converted.runtimeArg,
-					Action:     "转换",
-					Note:       "Chrome 144+ 实测使用该噪声开关，运行时转换旧面板参数",
-				})
-				continue
-			}
-			if chrome144Plus {
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: converted.label,
-					Status:     "disabled",
-					InputArg:   arg,
-					Action:     "运行时移除",
-					Note:       "旧面板参数显式关闭，当前适配矩阵不把关闭值作为运行参数传递",
-				})
-				continue
-			}
-			plan.launchArgs = append(plan.launchArgs, arg)
-			note := legacyKeepNote(unknownVersion)
-			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-				Capability: converted.label,
-				Status:     legacyKeepStatus(unknownVersion || chrome144Plus),
-				InputArg:   arg,
-				RuntimeArg: arg,
-				Action:     "保守保留",
-				Note:       note,
-			})
-			continue
-		}
-
-		if label, ok := fingerprintChrome144RemovedArgLabels[key]; ok {
-			if chrome144Plus {
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: label,
-					Status:     "removed",
-					InputArg:   arg,
-					Action:     "运行时清理",
-					Note:       "当前适配矩阵不再把该旧 GPU 参数作为独立运行参数，GPU 指纹按 --fingerprint 种子处理",
-				})
-				continue
-			}
-			plan.launchArgs = append(plan.launchArgs, arg)
-			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-				Capability: label,
-				Status:     legacyKeepStatus(unknownVersion),
-				InputArg:   arg,
-				RuntimeArg: arg,
-				Action:     "保留",
-				Note:       legacyKeepNote(unknownVersion),
-			})
-			continue
-		}
-
-		if label, ok := fingerprintNoEffectArgLabels[key]; ok {
-			if chrome144Plus {
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: label,
-					Status:     "not_effective",
-					InputArg:   arg,
-					Action:     "运行时移除",
-					Note:       "本地 Chrom-144 实测该参数未改变对应 JS 指纹值；不再作为运行参数或期望值传递",
-				})
-				continue
-			}
-			plan.launchArgs = append(plan.launchArgs, arg)
-			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-				Capability: label,
-				Status:     legacyKeepStatus(unknownVersion),
-				InputArg:   arg,
-				RuntimeArg: arg,
-				Action:     "保守保留",
-				Note:       legacyKeepNote(unknownVersion),
-			})
-			continue
-		}
-
+		plan.launchArgs = append(plan.launchArgs, arg)
 		if label, ok := fingerprintStableArgLabels[key]; ok {
-			if noiseLabel, isNoiseArg := fingerprintEffectiveNoiseArgLabels[key]; chrome144Plus && isNoiseArg && !browserFingerprintArgEnabled(arg) {
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: noiseLabel,
-					Status:     "disabled",
-					InputArg:   arg,
-					Action:     "运行时移除",
-					Note:       "新版噪声参数显式关闭，当前适配矩阵不把关闭值作为运行参数传递",
-				})
+			if key == "--accept-lang" {
 				continue
 			}
-			plan.launchArgs = append(plan.launchArgs, arg)
-			if key != "--fingerprint" && key != "--accept-lang" {
-				plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
-					Capability: label,
-					Status:     "kept",
-					InputArg:   arg,
-					RuntimeArg: arg,
-					Action:     "保留",
-					Note:       "当前版本策略下作为稳定参数传递给内核",
-				})
-			}
-		} else if _, modeled := fingerprintStableArgLabels[key]; !modeled {
-			plan.launchArgs = append(plan.launchArgs, arg)
+			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
+				Capability: label,
+				Status:     "kept",
+				InputArg:   arg,
+				RuntimeArg: arg,
+				Action:     "保留",
+				Note:       "官方 Chromium 兼容参数",
+			})
+			continue
+		}
+		if key != "" {
 			plan.rows = append(plan.rows, BrowserFingerprintCapabilityRow{
 				Capability: key,
-				Status:     "kept_unknown",
+				Status:     "kept",
 				InputArg:   arg,
 				RuntimeArg: arg,
 				Action:     "保留",
-				Note:       "后端未建模该参数，为避免误删按原样传递",
+				Note:       "按原样传递给官方 Chromium/Chrome",
 			})
-		}
-	}
-
-	if convertedDisableGPU {
-		disableSpoofingValues = appendUniqueStringValues(disableSpoofingValues, "gpu")
-		runtimeArg := "--disable-spoofing=" + strings.Join(disableSpoofingValues, ",")
-		if disableSpoofingIndex >= 0 {
-			plan.launchArgs[disableSpoofingIndex] = runtimeArg
-		} else {
-			plan.launchArgs = append(plan.launchArgs, runtimeArg)
 		}
 	}
 

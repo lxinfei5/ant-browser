@@ -35,12 +35,11 @@ logging:
       - secret
 browser:
   user_data_root: data
-  default_fingerprint_args:
-    - --fingerprint-brand=Chrome
-    - --fingerprint-platform=linux
+  default_fingerprint_args: []
   default_launch_args:
     - --disable-sync
     - --no-first-run
+    - --disable-non-proxied-udp
   default_bookmarks: []
   cores: []
   proxies: []

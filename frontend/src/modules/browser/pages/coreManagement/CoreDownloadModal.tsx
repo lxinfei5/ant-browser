@@ -3,7 +3,7 @@ import { Button, FormItem, Input, Modal, toast } from '../../../../shared/compon
 import { BrowserOpenURL } from '../../../../wailsjs/runtime/runtime'
 import type { BrowserProxy } from '../../types'
 import type { CoreDownloadForm, CoreDownloadProgress } from '../coreManagement.types'
-import { FINGERPRINT_CHROMIUM_RELEASES_URL } from './coreDownloadRecommendation'
+import { CHROME_FOR_TESTING_DASHBOARD_URL } from './coreDownloadRecommendation'
 import type { CoreDownloadRecommendation } from './coreDownloadRecommendation'
 
 interface CoreDownloadModalProps {
@@ -83,7 +83,7 @@ export function CoreDownloadModal({
           <Input
             value={form.url}
             onChange={e => setForm(prev => ({ ...prev, url: e.target.value }))}
-            placeholder={recommendationLoading ? '正在匹配当前环境...' : 'https://github.com/.../chromium.zip'}
+            placeholder={recommendationLoading ? '正在匹配当前环境...' : 'https://storage.googleapis.com/chrome-for-testing-public/.../chrome-mac-arm64.zip'}
             disabled={progress !== null}
           />
           <div className="text-xs text-[var(--color-text-muted)] mt-2 flex items-center justify-between gap-3 bg-[var(--color-bg-muted)] p-2 rounded">
@@ -106,10 +106,10 @@ export function CoreDownloadModal({
             )}
             <button
               type="button"
-              onClick={() => BrowserOpenURL(recommendation?.releasesUrl || FINGERPRINT_CHROMIUM_RELEASES_URL)}
+              onClick={() => BrowserOpenURL(recommendation?.releasesUrl || CHROME_FOR_TESTING_DASHBOARD_URL)}
               className="shrink-0 text-[var(--color-accent)] hover:underline cursor-pointer font-medium"
             >
-              打开 Releases
+              Chrome for Testing
             </button>
             {!recommendationLoading && !recommendation && (
               <button

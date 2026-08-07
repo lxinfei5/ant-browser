@@ -38,7 +38,7 @@ export function CoreSettingsModal({ open, form, saving, setForm, onClose, onSave
             value={form.defaultFingerprintArgs}
             onChange={e => setForm(prev => ({ ...prev, defaultFingerprintArgs: e.target.value }))}
             rows={4}
-            placeholder="每行一个参数，如 --fingerprint-brand=Chrome"
+            placeholder="可选；官方 Chromium 兼容参数，每行一个（不再支持 fingerprint-chromium 专有 flag）"
           />
         </FormItem>
         <FormItem label="默认启动参数">

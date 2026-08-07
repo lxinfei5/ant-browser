@@ -36,15 +36,11 @@ logging:
             - secret
 browser:
     user_data_root: data
-    default_fingerprint_args:
-        - --fingerprint-brand=Chrome
-        - --fingerprint-platform=windows
-        - --disable-non-proxied-udp
-        - --fingerprinting-canvas-image-data-noise
-        - --fingerprinting-client-rects-noise
+    default_fingerprint_args: []
     default_launch_args:
         - --disable-sync
         - --no-first-run
+        - --disable-non-proxied-udp
     default_start_urls: []
     light_start_enabled: true
     restore_last_session: false

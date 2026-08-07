@@ -20,15 +20,19 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-blue)](https://github.com/black-ant/Ant-Browser/releases)
 [![Issues](https://img.shields.io/github/issues/black-ant/Ant-Browser)](https://github.com/black-ant/Ant-Browser/issues)
 
-## 推荐内核项目
+## 推荐内核
 
-Ant Browser 当前推荐配套使用的浏览器内核，来源于开源项目 [fingerprint-chromium](https://github.com/adryfish/fingerprint-chromium)。
+本项目（及 ProfilePool fork）以**官方 Chromium 系**内核为准，**不再依赖 fingerprint-chromium**。
 
-如果你正在寻找可直接下载和维护的指纹内核版本，建议先查看它的 Releases 页面：
+推荐来源（按优先级）：
 
-- <https://github.com/adryfish/fingerprint-chromium/releases>
+1. **本机 Google Chrome**（macOS：`/Applications/Google Chrome.app`）— 在「内核管理」登记为系统内核即可
+2. **Chrome for Testing**（GoogleChromeLabs 官方测试构建，适合自动化 / CDP）  
+   - 看板：<https://googlechromelabs.github.io/chrome-for-testing/>  
+   - 应用内「下载内核」会按当前系统/架构推荐 Stable 包
+3. **Chromium 官方获取说明**：<https://www.chromium.org/getting-involved/download-chromium/>
 
-这个项目为 Ant Browser 的内核准备提供了直接可用的基础来源，这里先对原项目做明确推荐与致谢。
+实例隔离依赖独立 `user-data-dir` 与代理绑定；不再注入 `--fingerprint*` 等第三方内核专有参数。
 
 Ant Browser 的目标很明确：在一台桌面设备上，帮助用户稳定管理多个彼此隔离的浏览器实例，并配合代理池、浏览器内核和快捷启动能力完成日常运营或测试工作。
 

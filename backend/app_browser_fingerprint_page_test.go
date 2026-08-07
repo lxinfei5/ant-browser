@@ -189,6 +189,7 @@ func TestFingerprintCheckPageContextUsesAdaptedArgs(t *testing.T) {
 			"--fingerprint=123",
 			"--fingerprint-gpu-vendor=NVIDIA",
 			"--disable-gpu-fingerprint",
+			"--lang=zh-CN",
 		},
 	}
 
@@ -200,11 +201,16 @@ func TestFingerprintCheckPageContextUsesAdaptedArgs(t *testing.T) {
 	if err := json.Unmarshal(data, &context); err != nil {
 		t.Fatalf("unmarshal context error = %v", err)
 	}
-	if context.Expected.Seed != "123" {
-		t.Fatalf("seed = %q, want 123", context.Expected.Seed)
+	// Stock Chromium policy: proprietary fingerprint-chromium flags are stripped;
+	// seed / disable-spoofing are not part of official launch args.
+	if context.Expected.Seed != "" {
+		t.Fatalf("seed = %q, want empty under stock Chromium policy", context.Expected.Seed)
 	}
-	if context.Expected.DisableSpoofing != "gpu" {
-		t.Fatalf("disableSpoofing = %q, want gpu", context.Expected.DisableSpoofing)
+	if context.Expected.DisableSpoofing != "" {
+		t.Fatalf("disableSpoofing = %q, want empty under stock Chromium policy", context.Expected.DisableSpoofing)
+	}
+	if context.Expected.Language != "zh-CN" {
+		t.Fatalf("language = %q, want zh-CN", context.Expected.Language)
 	}
 }
 

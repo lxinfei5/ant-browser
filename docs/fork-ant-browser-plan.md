@@ -3,7 +3,8 @@
 > 状态：已定稿，待实现  
 > 创建日期：2026-07-19  
 > 上游：https://github.com/black-ant/Ant-Browser  
-> 推荐内核：https://github.com/adryfish/fingerprint-chromium  
+> 推荐内核：官方 Chromium / Google Chrome / [Chrome for Testing](https://googlechromelabs.github.io/chrome-for-testing/)（**已移除 fingerprint-chromium 依赖**）  
+
 > 原则：**先跑通上游能力，再加业务层；少改内核，多改编排与数据模型。**
 
 ---
@@ -15,7 +16,7 @@
 | 1 | **多账号日常使用** | 一账号一 Profile，GUI 切换，独立 Cookie/存储，代理绑定，不串号 |
 | 2 | **爬取 + 账号池** | 固定指纹/代理，API 启停，Playwright/CDP 接管，降风控 |
 
-**已选定方案：Fork Ant-Browser**，引擎使用 fingerprint-chromium；爬取侧 worker 外置；可选后续加 Camoufox 作第二引擎。
+**已选定方案：Fork Ant-Browser**，引擎使用官方 Chromium 系（Chrome / Chrome for Testing）；爬取侧 worker 外置；可选后续加 Camoufox 作第二引擎。**已不再使用 fingerprint-chromium。**
 
 ---
 
@@ -480,7 +481,7 @@ migrations/               # 或沿用项目现有迁移方式
 | 角色 | 项目 | 说明 |
 |------|------|------|
 | 编排基座（本计划 fork 对象） | [Ant-Browser](https://github.com/black-ant/Ant-Browser) | 实例/代理/内核/Launch API/CDP |
-| 引擎 | [fingerprint-chromium](https://github.com/adryfish/fingerprint-chromium) | CLI 指纹 seed，自动化友好 |
+| 引擎 | 官方 Chromium / Chrome for Testing | 可信源头 + CDP/Playwright 友好 |
 | 爬取加强（可选 P3） | [Camoufox](https://github.com/daijro/camoufox) | Firefox 源码级反检测 + Playwright |
 | 产品参考（不 fork） | [Donut Browser](https://github.com/zhom/donutbrowser) | Profile/API/MCP 完整，AGPL |
 | 即用参考（不 fork） | [VirtualBrowser](https://github.com/Virtual-Browser/VirtualBrowser) | Windows 多开产品型 |

@@ -2,48 +2,47 @@ package browser
 
 import "strings"
 
-var effectiveRuntimeFingerprintArgs = []string{
-	"--disable-non-proxied-udp",
-	"--fingerprinting-canvas-image-data-noise",
-	"--fingerprinting-client-rects-noise",
+// upgradeLegacyMinimalFingerprintArgs strips fingerprint-chromium proprietary
+// CLI flags so stock Chromium/Chrome profiles never carry them forward.
+// The name is kept for call-site compatibility (load/save path).
+func upgradeLegacyMinimalFingerprintArgs(args []string) []string {
+	return stripProprietaryFingerprintArgs(args)
 }
 
-func upgradeLegacyMinimalFingerprintArgs(args []string) []string {
-	if !isLegacyMinimalFingerprintArgs(args) {
-		return append([]string{}, args...)
+func stripProprietaryFingerprintArgs(args []string) []string {
+	if len(args) == 0 {
+		return []string{}
 	}
-	out := append([]string{}, args...)
-	for _, defaultArg := range effectiveRuntimeFingerprintArgs {
-		if !fingerprintArgContains(out, defaultArg) {
-			out = append(out, defaultArg)
+	out := make([]string, 0, len(args))
+	for _, arg := range args {
+		trimmed := strings.TrimSpace(arg)
+		if trimmed == "" {
+			continue
 		}
+		if isProprietaryFingerprintArg(trimmed) {
+			continue
+		}
+		out = append(out, trimmed)
 	}
 	return out
 }
 
-func isLegacyMinimalFingerprintArgs(args []string) bool {
-	if len(args) != 2 {
+func isProprietaryFingerprintArg(arg string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(arg))
+	normalized = strings.TrimLeft(normalized, "-")
+	if normalized == "" {
 		return false
 	}
-	hasBrand := false
-	hasPlatform := false
-	for _, arg := range args {
-		trimmed := strings.TrimSpace(arg)
-		if strings.HasPrefix(trimmed, "--fingerprint-brand=") {
-			hasBrand = true
-		}
-		if strings.HasPrefix(trimmed, "--fingerprint-platform=") {
-			hasPlatform = true
-		}
+	key := normalized
+	if idx := strings.Index(key, "="); idx >= 0 {
+		key = key[:idx]
 	}
-	return hasBrand && hasPlatform
-}
-
-func fingerprintArgContains(args []string, expected string) bool {
-	for _, arg := range args {
-		if strings.TrimSpace(arg) == expected {
-			return true
-		}
+	switch {
+	case key == "fingerprint", strings.HasPrefix(key, "fingerprint-"), strings.HasPrefix(key, "fingerprinting-"):
+		return true
+	case key == "disable-gpu-fingerprint", key == "disable-spoofing":
+		return true
+	default:
+		return false
 	}
-	return false
 }

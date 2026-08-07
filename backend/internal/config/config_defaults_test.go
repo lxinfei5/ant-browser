@@ -2,39 +2,51 @@ package config
 
 import "testing"
 
-func TestDefaultFingerprintArgsIncludeEffectiveRuntimeArgs(t *testing.T) {
-	args := defaultFingerprintArgsForOS("windows")
-	assertStringSliceContains(t, args, "--fingerprint-brand=Chrome")
-	assertStringSliceContains(t, args, "--fingerprint-platform=windows")
-	assertStringSliceContains(t, args, "--disable-non-proxied-udp")
-	assertStringSliceContains(t, args, "--fingerprinting-canvas-image-data-noise")
-	assertStringSliceContains(t, args, "--fingerprinting-client-rects-noise")
+func TestDefaultFingerprintArgsAreEmptyForStockChromium(t *testing.T) {
+	cfg := DefaultConfig()
+	if len(cfg.Browser.DefaultFingerprintArgs) != 0 {
+		t.Fatalf("default fingerprint args = %#v, want empty for stock Chromium", cfg.Browser.DefaultFingerprintArgs)
+	}
+	assertStringSliceContains(t, cfg.Browser.DefaultLaunchArgs, "--disable-sync")
+	assertStringSliceContains(t, cfg.Browser.DefaultLaunchArgs, "--no-first-run")
+	assertStringSliceContains(t, cfg.Browser.DefaultLaunchArgs, "--disable-non-proxied-udp")
 }
 
-func TestNormalizeConfigUpgradesLegacyMinimalDefaultFingerprintArgs(t *testing.T) {
+func TestNormalizeConfigStripsProprietaryDefaultFingerprintArgs(t *testing.T) {
 	config := &Config{}
-	config.Browser.DefaultFingerprintArgs = []string{"--fingerprint-brand=Chrome", "--fingerprint-platform=windows"}
+	config.Browser.DefaultFingerprintArgs = []string{
+		"--fingerprint-brand=Chrome",
+		"--fingerprint-platform=windows",
+		"--fingerprinting-canvas-image-data-noise",
+		"--lang=zh-CN",
+	}
 
 	normalizeConfig(config)
 
-	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--fingerprint-brand=Chrome")
-	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--fingerprint-platform=windows")
-	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--disable-non-proxied-udp")
-	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--fingerprinting-canvas-image-data-noise")
-	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--fingerprinting-client-rects-noise")
+	if got, want := len(config.Browser.DefaultFingerprintArgs), 1; got != want {
+		t.Fatalf("default fingerprint args length = %d, want %d: %#v", got, want, config.Browser.DefaultFingerprintArgs)
+	}
+	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--lang=zh-CN")
 }
 
-func TestNormalizeConfigDoesNotOverrideCustomDefaultFingerprintArgs(t *testing.T) {
+func TestNormalizeConfigDoesNotReintroduceProprietaryFingerprintArgs(t *testing.T) {
 	config := &Config{}
 	config.Browser.DefaultFingerprintArgs = []string{"--fingerprint=123", "--fingerprint-brand=Chrome"}
 
 	normalizeConfig(config)
 
-	if got, want := len(config.Browser.DefaultFingerprintArgs), 2; got != want {
+	if got, want := len(config.Browser.DefaultFingerprintArgs), 0; got != want {
 		t.Fatalf("default fingerprint args length = %d, want %d: %#v", got, want, config.Browser.DefaultFingerprintArgs)
 	}
-	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--fingerprint=123")
-	assertStringSliceContains(t, config.Browser.DefaultFingerprintArgs, "--fingerprint-brand=Chrome")
+}
+
+func TestNormalizeConfigUpgradesLegacyMinimalLaunchArgs(t *testing.T) {
+	config := &Config{}
+	config.Browser.DefaultLaunchArgs = []string{"--disable-sync", "--no-first-run"}
+
+	normalizeConfig(config)
+
+	assertStringSliceContains(t, config.Browser.DefaultLaunchArgs, "--disable-non-proxied-udp")
 }
 
 func assertStringSliceContains(t *testing.T, values []string, expected string) {

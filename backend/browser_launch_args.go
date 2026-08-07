@@ -12,7 +12,7 @@ type managedLaunchArgSpec struct {
 
 // managedLaunchArgSpecs 既是系统接管参数，也是安全敏感参数的 DENYLIST：
 // 无论来源（profile.LaunchArgs / 一次性 ExtraLaunchArgs / FingerprintArgs）都会被剥离。
-// 合法的指纹参数（--fingerprint* / --fingerprint-brand / --fingerprint-platform）不在列表中，予以保留。
+// fingerprint-chromium 专有参数不在本列表中：由 buildBrowserFingerprintLaunchPlan 统一剥离。
 var managedLaunchArgSpecs = []managedLaunchArgSpec{
 	{prefix: "--user-data-dir", takesValue: true},
 	{prefix: "--remote-debugging-port", takesValue: true},

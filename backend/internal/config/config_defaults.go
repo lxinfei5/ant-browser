@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	goruntime "runtime"
 	"strings"
 )
 
@@ -119,13 +118,13 @@ func normalizeConfig(config *Config) {
 	if strings.TrimSpace(config.Browser.UserDataRoot) == "" {
 		config.Browser.UserDataRoot = defaultConfig.Browser.UserDataRoot
 	}
-	if len(config.Browser.DefaultFingerprintArgs) == 0 {
-		config.Browser.DefaultFingerprintArgs = append([]string{}, defaultConfig.Browser.DefaultFingerprintArgs...)
-	} else if isLegacyMinimalDefaultFingerprintArgs(config.Browser.DefaultFingerprintArgs) {
-		config.Browser.DefaultFingerprintArgs = appendEffectiveRuntimeFingerprintArgs(config.Browser.DefaultFingerprintArgs)
-	}
+	// Strip fingerprint-chromium proprietary flags from legacy configs. Empty is valid:
+	// stock Chromium/Chrome does not use DefaultFingerprintArgs for spoofing.
+	config.Browser.DefaultFingerprintArgs = stripProprietaryFingerprintArgs(config.Browser.DefaultFingerprintArgs)
 	if len(config.Browser.DefaultLaunchArgs) == 0 {
 		config.Browser.DefaultLaunchArgs = append([]string{}, defaultConfig.Browser.DefaultLaunchArgs...)
+	} else {
+		config.Browser.DefaultLaunchArgs = ensureStockIsolationLaunchArgs(config.Browser.DefaultLaunchArgs)
 	}
 	if config.Browser.DefaultStartURLs == nil {
 		config.Browser.DefaultStartURLs = append([]string{}, defaultConfig.Browser.DefaultStartURLs...)
@@ -259,9 +258,10 @@ func DefaultConfig() *Config {
 			GCPercent:   100,
 		},
 		Browser: BrowserConfig{
-			UserDataRoot:           "data",
-			DefaultFingerprintArgs: defaultFingerprintArgsForOS(goruntime.GOOS),
-			DefaultLaunchArgs:      []string{"--disable-sync", "--no-first-run"},
+			UserDataRoot: "data",
+			// Official Chromium/Chrome: no fingerprint-chromium CLI defaults.
+			DefaultFingerprintArgs: []string{},
+			DefaultLaunchArgs:      []string{"--disable-sync", "--no-first-run", "--disable-non-proxied-udp"},
 			DefaultStartURLs:       DefaultBrowserStartURLs(),
 			LightStartEnabled:      boolPtr(true),
 			RestoreLastSession:     false,
@@ -323,63 +323,79 @@ func DefaultConfig() *Config {
 	}
 }
 
-func defaultFingerprintArgsForOS(goos string) []string {
-	platform := "windows"
-	switch strings.ToLower(strings.TrimSpace(goos)) {
-	case "darwin":
-		platform = "mac"
-	case "linux":
-		platform = "linux"
+// stripProprietaryFingerprintArgs removes fingerprint-chromium-only CLI flags.
+// Stock Chromium/Chrome do not implement --fingerprint* / --fingerprinting-* /
+// --disable-spoofing / --disable-gpu-fingerprint.
+func stripProprietaryFingerprintArgs(args []string) []string {
+	if len(args) == 0 {
+		return []string{}
 	}
-	return []string{
-		"--fingerprint-brand=Chrome",
-		"--fingerprint-platform=" + platform,
-		"--disable-non-proxied-udp",
-		"--fingerprinting-canvas-image-data-noise",
-		"--fingerprinting-client-rects-noise",
-	}
-}
-
-func isLegacyMinimalDefaultFingerprintArgs(args []string) bool {
-	if len(args) != 2 {
-		return false
-	}
-	hasBrand := false
-	hasPlatform := false
+	out := make([]string, 0, len(args))
 	for _, arg := range args {
 		trimmed := strings.TrimSpace(arg)
-		if strings.HasPrefix(trimmed, "--fingerprint-brand=") {
-			hasBrand = true
+		if trimmed == "" {
+			continue
 		}
-		if strings.HasPrefix(trimmed, "--fingerprint-platform=") {
-			hasPlatform = true
+		if isProprietaryFingerprintArg(trimmed) {
+			continue
 		}
-	}
-	return hasBrand && hasPlatform
-}
-
-func appendEffectiveRuntimeFingerprintArgs(args []string) []string {
-	defaultRuntimeArgs := []string{
-		"--disable-non-proxied-udp",
-		"--fingerprinting-canvas-image-data-noise",
-		"--fingerprinting-client-rects-noise",
-	}
-	out := append([]string{}, args...)
-	for _, defaultArg := range defaultRuntimeArgs {
-		if !containsFingerprintArg(out, defaultArg) {
-			out = append(out, defaultArg)
-		}
+		out = append(out, trimmed)
 	}
 	return out
 }
 
-func containsFingerprintArg(args []string, expected string) bool {
-	for _, arg := range args {
-		if strings.TrimSpace(arg) == expected {
-			return true
+func isProprietaryFingerprintArg(arg string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(arg))
+	normalized = strings.TrimLeft(normalized, "-")
+	if normalized == "" {
+		return false
+	}
+	// Match both -foo and --foo forms.
+	key := normalized
+	if idx := strings.Index(key, "="); idx >= 0 {
+		key = key[:idx]
+	}
+	switch {
+	case key == "fingerprint", strings.HasPrefix(key, "fingerprint-"), strings.HasPrefix(key, "fingerprinting-"):
+		return true
+	case key == "disable-gpu-fingerprint", key == "disable-spoofing":
+		return true
+	default:
+		return false
+	}
+}
+
+// ensureStockIsolationLaunchArgs keeps WebRTC non-proxied UDP disabled for proxy isolation.
+func ensureStockIsolationLaunchArgs(args []string) []string {
+	const isolationArg = "--disable-non-proxied-udp"
+	out := append([]string{}, args...)
+	for _, arg := range out {
+		if strings.TrimSpace(arg) == isolationArg {
+			return out
 		}
 	}
-	return false
+	// Only auto-add when the list looks like the historical minimal launch defaults.
+	if isLegacyMinimalDefaultLaunchArgs(out) {
+		return append(out, isolationArg)
+	}
+	return out
+}
+
+func isLegacyMinimalDefaultLaunchArgs(args []string) bool {
+	if len(args) != 2 {
+		return false
+	}
+	hasDisableSync := false
+	hasNoFirstRun := false
+	for _, arg := range args {
+		switch strings.TrimSpace(arg) {
+		case "--disable-sync":
+			hasDisableSync = true
+		case "--no-first-run":
+			hasNoFirstRun = true
+		}
+	}
+	return hasDisableSync && hasNoFirstRun
 }
 func DefaultAutomationRuntimeVersion(nodeVersion, playwrightVersion string) string {
 	return fmt.Sprintf("node-%s-playwright-core-%s", strings.TrimSpace(nodeVersion), strings.TrimSpace(playwrightVersion))

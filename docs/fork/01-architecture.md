@@ -30,7 +30,7 @@
 │                           │ 调用上游 Launch / CDP          │
 └───────────────────────────┼──────────────────────────────┘
                             │ spawn
-              fingerprint-chromium（+ --user-data-dir）
+              官方 Chromium / Google Chrome / Chrome for Testing（+ --user-data-dir）
                             ▲
               Playwright Worker（外置，独立仓库/目录）
               xhs_worker / x_worker …
@@ -64,7 +64,7 @@ Account ──绑定──► Instance ──绑定──► Proxy
 
 启动时 `ensureDefaultCores()` 调 `scanChromeDir` 扫描内核根（`config.Browser.CoreRoot`，未设则字面量 `chrome/`）注册内核。可执行文件候选名按平台差异（`CoreExecutableCandidates()`，`backend/internal/browser/core_binary.go:11`）。
 
-> 关键：启动器**无条件**注入 fingerprint-chromium 风格的 `--fingerprint=<seed>` 与 `--fingerprint-brand`/`--fingerprint-platform` flag，因此**假定内核为 fingerprint-chromium**（`adryfish/fingerprint-chromium`）；指向 stock Google Chrome 会因未知 flag 报错。接入方式：把某 Core 的 `CorePath` 指向含 fingerprint-chromium 构建的目录（沿用 `chrome`/`chrome.exe`/`.app` 命名），无需改代码。
+> 关键（已切换）：启动器以**官方 Chromium / Google Chrome / Chrome for Testing** 为准，**不再注入** fingerprint-chromium 的 `--fingerprint*` 等专有 flag；历史配置中的此类参数在启动时会被剥离。接入方式：登记本机 Chrome，或从 Chrome for Testing 下载官方测试构建到 `chrome/`。
 
 ### 2.3 启动链路与 LaunchServer
 

@@ -21,10 +21,10 @@
 - **xray**（https://github.com/XTLS/Xray-core）— Apache License 2.0
 - **sing-box**（https://github.com/SagerNet/sing-box）— GPL-3.0
 - **mihomo**（https://github.com/MetaCubeX/mihomo）— GPL-3.0
-- **fingerprint-chromium**（https://github.com/adryfish/fingerprint-chromium，推荐内核）— 见上游仓库 LICENSE
+- **Google Chrome / Chromium / Chrome for Testing**（用户自备官方内核）— 见 Google / Chromium 各自许可
 - **Playwright** / Node 自动化运行时 — 见各自 Apache-2.0 / MIT 许可
 
-> 运行时二进制由用户自行管理、放在可写 state root 下的 `chrome/`/`bin/` 目录；本 fork 不再分发这些二进制，仅作为本地代理桥 / 内核调用。
+> 运行时二进制由用户自行管理、放在可写 state root 下的 `chrome/`/`bin/` 目录；本 fork 不再分发浏览器内核，也不再推荐 fingerprint-chromium。代理桥二进制（xray/sing-box 等）同理由用户或打包流程管理。
 
 ## 联系
 

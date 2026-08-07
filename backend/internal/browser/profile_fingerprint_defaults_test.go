@@ -2,20 +2,25 @@ package browser
 
 import "testing"
 
-func TestUpgradeLegacyMinimalFingerprintArgsAddsEffectiveRuntimeArgs(t *testing.T) {
-	args := upgradeLegacyMinimalFingerprintArgs([]string{"--fingerprint-brand=Chrome", "--fingerprint-platform=windows"})
+func TestUpgradeLegacyMinimalFingerprintArgsStripsProprietaryArgs(t *testing.T) {
+	args := upgradeLegacyMinimalFingerprintArgs([]string{
+		"--fingerprint-brand=Chrome",
+		"--fingerprint-platform=windows",
+		"--fingerprinting-canvas-image-data-noise",
+		"--lang=zh-CN",
+	})
 
-	assertStringSliceContains(t, args, "--disable-non-proxied-udp")
-	assertStringSliceContains(t, args, "--fingerprinting-canvas-image-data-noise")
-	assertStringSliceContains(t, args, "--fingerprinting-client-rects-noise")
-}
-
-func TestUpgradeLegacyMinimalFingerprintArgsKeepsCustomArgs(t *testing.T) {
-	args := upgradeLegacyMinimalFingerprintArgs([]string{"--fingerprint=123", "--fingerprint-brand=Chrome"})
-
-	if got, want := len(args), 2; got != want {
+	if got, want := len(args), 1; got != want {
 		t.Fatalf("fingerprint args length = %d, want %d: %#v", got, want, args)
 	}
-	assertStringSliceContains(t, args, "--fingerprint=123")
-	assertStringSliceContains(t, args, "--fingerprint-brand=Chrome")
+	assertStringSliceContains(t, args, "--lang=zh-CN")
+}
+
+func TestUpgradeLegacyMinimalFingerprintArgsStripsSeedArgs(t *testing.T) {
+	args := upgradeLegacyMinimalFingerprintArgs([]string{"--fingerprint=123", "--fingerprint-brand=Chrome", "--window-size=1280,720"})
+
+	if got, want := len(args), 1; got != want {
+		t.Fatalf("fingerprint args length = %d, want %d: %#v", got, want, args)
+	}
+	assertStringSliceContains(t, args, "--window-size=1280,720")
 }
