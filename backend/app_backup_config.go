@@ -39,7 +39,8 @@ func (a *App) backupClearBusinessTables() error {
 	}
 	defer tx.Rollback()
 
-	tables := []string{"launch_codes", "browser_profiles", "browser_proxies", "browser_cores", "browser_bookmarks", "browser_groups", "browser_extensions", "browser_profile_extension_settings", "browser_profile_extensions"}
+	// accounts / browser_tags 也属业务数据：reset 恢复时若不清空会残留账号身份 PII(email/phone)与标签注册表。
+	tables := []string{"launch_codes", "browser_profiles", "browser_proxies", "browser_cores", "browser_bookmarks", "browser_groups", "browser_extensions", "browser_profile_extension_settings", "browser_profile_extensions", "accounts", "browser_tags"}
 	for _, table := range tables {
 		if _, err := tx.Exec("DELETE FROM " + table); err != nil && !backupIsNoSuchTableError(err) {
 			return fmt.Errorf("清空数据表失败(%s): %w", table, err)

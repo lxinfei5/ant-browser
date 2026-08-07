@@ -58,7 +58,12 @@
   --shadow-lg: 0 16px 40px rgba(16, 24, 40, 0.14);
 
   /* --- typography --- */
-  --font-sans: 'Monaco', 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  /* System UI stack (offline-safe, no webfont). Sans first; mono reserved
+     for IDs / proxy strings / code via var(--font-mono). */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Monaco, 'Cascadia Code', 'Courier New',
+    monospace;
   --text-display: 24px;
   --text-title: 17px;
   --text-body: 13px;
@@ -70,9 +75,25 @@
   --dur-fast: 150ms;
   --dur-med: 200ms;
 
+  /* --- z-index scale ---
+     Ordered so portaled dropdowns float ABOVE modals (matches the previous
+     9990 modal / 9999 dropdown / 10000 toast behavior), toast always on top.
+     sticky < overlay < modal < dropdown < toast. */
+  --z-sticky: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-dropdown: 400;
+  --z-toast: 500;
+
   /* ========================================================
      LEGACY ALIASES — keep every existing arbitrary-value
      class (bg-[var(--color-bg-surface)] etc.) working.
+
+     TODO(deprecated): these --color-* aliases are superseded by the
+     canonical --bg-*, --text-*, --border-*, --accent tokens above. They are
+     still referenced across modules, so do NOT delete yet. A future
+     codemod should rewrite var(--color-*) -> the canonical token and then
+     drop this block.
      ======================================================== */
   --color-bg-base: var(--bg-base);
   --color-bg-surface: var(--bg-raised);

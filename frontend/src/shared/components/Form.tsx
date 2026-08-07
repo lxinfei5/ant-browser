@@ -25,7 +25,7 @@ export function FormItem({ label, required, hint, error, children, className }: 
           {hint && (
             <span className="group relative inline-flex" tabIndex={0} aria-label={hint} title={hint}>
               <span className="flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-[var(--color-border-muted)] text-[10px] font-semibold leading-none text-[var(--color-text-muted)]">?</span>
-              <span className="pointer-events-none absolute left-0 top-5 z-50 hidden w-64 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-normal leading-5 text-[var(--color-text-secondary)] shadow-lg group-hover:block group-focus:block">
+              <span className="pointer-events-none absolute left-0 top-5 z-[var(--z-dropdown)] hidden w-64 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-normal leading-5 text-[var(--color-text-secondary)] shadow-lg group-hover:block group-focus:block">
                 {hint}
               </span>
             </span>

@@ -134,7 +134,7 @@ export function TagInput({ value, onChange, suggestions = [], placeholder = '输
       {open && position && createPortal(
         <div
           data-tag-input-dropdown
-          className="fixed z-[9999] max-h-56 overflow-auto rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-lg"
+          className="fixed z-[var(--z-dropdown)] max-h-56 overflow-auto rounded-md border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-lg"
           style={{ left: position.left, top: position.top, width: position.width }}
         >
           {filtered.slice(0, 8).map(s => (

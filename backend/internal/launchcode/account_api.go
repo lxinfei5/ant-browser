@@ -3,33 +3,23 @@ package launchcode
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"ant-chrome/backend/internal/accountpool"
 )
 
-// accountPoolService 由 accountpool.AccountPoolService 实现，避免直接依赖具体类型
+// accountPoolService 由 accountpool.AccountPoolService 实现，避免直接依赖具体类型。
+// 仅保留账号 CRUD；租约/批量导入已随号池子系统移除。
 type accountPoolService interface {
 	Create(input accountpool.AccountInput) (*accountpool.Account, error)
 	Get(accountID string) (*accountpool.Account, error)
 	List(filter accountpool.AccountFilter) ([]*accountpool.Account, error)
 	Update(accountID string, input accountpool.AccountInput) (*accountpool.Account, error)
 	Delete(accountID string) error
-
-	// 批量导入 + 代理失败冷却（Phase 5）
-	BatchImport(rows []accountpool.AccountBatchRow) []accountpool.BatchImportResult
-	CooldownAccountsByProxy(proxyID string, cooldownSec int) ([]string, error)
-
-	// 租约（Phase 3）
-	Lease(input accountpool.LeaseInput) (*accountpool.Account, *accountpool.Lease, error)
-	GetLease(leaseID string) (*accountpool.Lease, error)
-	GetActiveLease(accountID string) (*accountpool.Lease, error)
-	Heartbeat(leaseID string, ttlSec int) (*accountpool.Lease, error)
-	Release(leaseID, result string, cooldownSec int) (*accountpool.Lease, *accountpool.Account, error)
-	MarkLeaseStarted(leaseID, cdpEndpoint string) error
-	ReclaimExpired() ([]*accountpool.Lease, error)
 }
 
 // SetAccountPoolService 注入账号池服务，供 HTTP API 使用
@@ -88,10 +78,6 @@ func (s *LaunchServer) handleAccountByID(w http.ResponseWriter, r *http.Request)
 			s.handleAccountStart(w, r, accountID)
 		case "stop":
 			s.handleAccountStop(w, r, accountID)
-		case "lease":
-			s.handleAccountActiveLease(w, r, accountID)
-		case "force-release":
-			s.handleAccountForceRelease(w, r, accountID)
 		default:
 			writeJSON(w, http.StatusNotFound, map[string]interface{}{"ok": false, "error": "account not found"})
 		}
@@ -126,9 +112,8 @@ func parseAccountActionPath(path string) (accountID, action string, ok bool) {
 
 func (s *LaunchServer) handleListAccounts(w http.ResponseWriter, r *http.Request) {
 	filter := accountpool.AccountFilter{
-		Platform: strings.TrimSpace(r.URL.Query().Get("platform")),
-		Status:   strings.TrimSpace(r.URL.Query().Get("status")),
-		GroupID:  strings.TrimSpace(r.URL.Query().Get("group_id")),
+		Status:  strings.TrimSpace(r.URL.Query().Get("status")),
+		GroupID: strings.TrimSpace(r.URL.Query().Get("group_id")),
 	}
 	items, err := s.accountPool.List(filter)
 	if err != nil {
@@ -225,74 +210,102 @@ func mapAccountWriteErrorStatus(err error) int {
 	switch {
 	case strings.Contains(msg, "not found"), strings.Contains(msg, "不存在"):
 		return http.StatusNotFound
-	case strings.Contains(msg, "is required"), strings.Contains(msg, "invalid"):
+	case strings.Contains(msg, "is required"), strings.Contains(msg, "invalid"),
+		strings.Contains(msg, "不正确"), strings.Contains(msg, "已被"):
 		return http.StatusBadRequest
 	default:
 		return http.StatusInternalServerError
 	}
 }
 
-// handleAccountActiveLease GET /api/v1/pool/accounts/{id}/lease —— 账号当前持有的 held 租约
-func (s *LaunchServer) handleAccountActiveLease(w http.ResponseWriter, r *http.Request, accountID string) {
-	if r.Method != http.MethodGet {
-		writeJSON(w, http.StatusMethodNotAllowed, map[string]interface{}{"ok": false, "error": "method not allowed"})
-		return
+// AcquireSession 是账号 start handler 专用的轻量“启动并接管”入口（map.start_path）。
+//
+// 它组装当前 HTTP 层散落的步骤为一个可直接调用的 Go 方法：启动绑定实例 ->
+// 等待调试端口就绪并 SetActiveProfile -> 返回 (debugPort, cdpUrl, error)。
+// 不经过 HTTP，直接调用注入的 *LaunchServer / *App。
+func (s *LaunchServer) AcquireSession(profileID string, timeout time.Duration) (debugPort int, cdpUrl string, err error) {
+	profileID = strings.TrimSpace(profileID)
+	if profileID == "" {
+		return 0, "", errors.New("profileId is required")
 	}
-	lease, err := s.accountPool.GetActiveLease(accountID)
+	if timeout <= 0 {
+		timeout = defaultRuntimeSessionTimeout
+	}
+
+	profile, err := s.launchProfile(profileID, LaunchRequestParams{})
 	if err != nil {
-		writeJSON(w, mapLeaseErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
-		return
+		return 0, "", err
 	}
-	if lease == nil {
-		writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "lease": nil})
-		return
+	profile, _, err = s.prepareRuntimeSession(profile, timeout)
+	if err != nil {
+		return 0, "", err
 	}
-	writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true, "lease": lease})
+	if profile == nil {
+		return 0, "", errors.New("runtime session is not available")
+	}
+
+	s.SetActiveProfile(profile)
+	cdp := s.CDPURL()
+	if cdp == "" && profile.DebugReady && profile.DebugPort > 0 {
+		cdp = fmt.Sprintf("http://127.0.0.1:%d", profile.DebugPort)
+	}
+	if cdp == "" {
+		return 0, "", errors.New("cdp url is not available")
+	}
+	return profile.DebugPort, cdp, nil
 }
 
-// accountForceReleaseRequest POST /api/v1/pool/accounts/{id}/force-release
-type accountForceReleaseRequest struct {
-	Result      string `json:"result"`
-	CooldownSec int    `json:"cooldown_sec"`
-}
-
-// handleAccountForceRelease POST /api/v1/pool/accounts/{id}/force-release —— 强制释放账号当前 held 租约
-func (s *LaunchServer) handleAccountForceRelease(w http.ResponseWriter, r *http.Request, accountID string) {
+// handleAccountStart POST /api/v1/pool/accounts/{id}/start —— 启动账号绑定的实例
+func (s *LaunchServer) handleAccountStart(w http.ResponseWriter, r *http.Request, accountID string) {
 	if r.Method != http.MethodPost {
 		writeJSON(w, http.StatusMethodNotAllowed, map[string]interface{}{"ok": false, "error": "method not allowed"})
 		return
 	}
-	var req accountForceReleaseRequest
-	_ = decodeLeaseBody(r, &req) // body 可为空
-
-	lease, err := s.accountPool.GetActiveLease(accountID)
+	account, err := s.accountPool.Get(accountID)
 	if err != nil {
-		writeJSON(w, mapLeaseErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
+		writeJSON(w, mapAccountWriteErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
 		return
 	}
-	if lease == nil {
-		writeJSON(w, http.StatusNotFound, map[string]interface{}{"ok": false, "error": "no active lease"})
+	if strings.TrimSpace(account.BoundProfileID) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{"ok": false, "error": "account has no bound profile"})
 		return
 	}
-	released, account, err := s.accountPool.Release(lease.LeaseID, req.Result, req.CooldownSec)
-	if err != nil {
-		writeJSON(w, mapLeaseErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
+	debugPort, cdpURL, startErr := s.AcquireSession(account.BoundProfileID, defaultRuntimeSessionTimeout)
+	if startErr != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]interface{}{"ok": false, "error": startErr.Error()})
 		return
-	}
-	// 自动启动的实例需要停止（与 lease release handler 逻辑一致）
-	if released != nil && released.AutoStarted == 1 {
-		_, _, _ = s.stopProfile(released.ProfileID)
-	}
-	accountStatus := ""
-	if account != nil {
-		accountStatus = account.Status
 	}
 	writeJSON(w, http.StatusOK, map[string]interface{}{
-		"ok":             true,
-		"lease_id":       released.LeaseID,
-		"leaseId":        released.LeaseID,
-		"account_id":     released.AccountID,
-		"accountId":      released.AccountID,
-		"account_status": accountStatus,
+		"ok":         true,
+		"accountId":  account.AccountID,
+		"cdp_url":    cdpURL,
+		"debug_port": debugPort,
+	})
+}
+
+// handleAccountStop POST /api/v1/pool/accounts/{id}/stop —— 停止账号绑定的实例
+func (s *LaunchServer) handleAccountStop(w http.ResponseWriter, r *http.Request, accountID string) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]interface{}{"ok": false, "error": "method not allowed"})
+		return
+	}
+	account, err := s.accountPool.Get(accountID)
+	if err != nil {
+		writeJSON(w, mapAccountWriteErrorStatus(err), map[string]interface{}{"ok": false, "error": err.Error()})
+		return
+	}
+	if strings.TrimSpace(account.BoundProfileID) == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]interface{}{"ok": false, "error": "account has no bound profile"})
+		return
+	}
+	profile, status, errMsg := s.stopProfile(account.BoundProfileID)
+	if errMsg != "" {
+		writeJSON(w, status, map[string]interface{}{"ok": false, "error": errMsg})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]interface{}{
+		"ok":        true,
+		"accountId": account.AccountID,
+		"stopped":   profile == nil || !profile.Running,
 	})
 }

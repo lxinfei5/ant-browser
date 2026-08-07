@@ -27,7 +27,7 @@ function NotificationDropdown({
   }
 
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-overlay)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] overflow-hidden z-50 animate-fade-in">
+    <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--bg-overlay)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] overflow-hidden z-[var(--z-dropdown)] animate-fade-in">
       {/* Header */}
       <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between">
         <div className="flex items-center gap-2">

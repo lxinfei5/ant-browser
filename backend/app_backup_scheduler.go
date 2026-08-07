@@ -11,7 +11,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// BackupScheduler 定时备份调度器（参照 accountpool.LeaseReclaimScheduler）。
+// BackupScheduler 定时备份调度器（参照 browser.ProxySpeedScheduler）。
 //
 // 周期性将全量配置与数据导出为 ZIP 写入固定目录（非交互，不弹出保存对话框）。
 // interval<=0 时不应创建/启动（由调用方根据配置决定）。使用 stopCh 实现优雅关闭。

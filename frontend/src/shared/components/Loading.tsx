@@ -37,7 +37,7 @@ export function Loading({
 
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--color-bg-base)]/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-[var(--z-overlay)] flex items-center justify-center bg-[var(--color-bg-base)]/80 backdrop-blur-sm">
         {spinner}
       </div>
     )

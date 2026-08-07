@@ -113,7 +113,7 @@ function HelpTip({ label, text }: { label: string, text: string }) {
       {open && position && createPortal(
         <span
           role="tooltip"
-          className="pointer-events-none fixed z-[9999] w-72 whitespace-normal rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-normal leading-5 text-[var(--color-text-secondary)] shadow-[var(--shadow-md)]"
+          className="pointer-events-none fixed z-[var(--z-dropdown)] w-72 whitespace-normal rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-normal leading-5 text-[var(--color-text-secondary)] shadow-[var(--shadow-md)]"
           style={{ left: position.left, top: position.top }}
         >
           {text}

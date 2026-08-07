@@ -134,13 +134,6 @@ export function useBrowserListDerived(
         const matches = Array.from(filters.tags).some(ft => tagsContain(combinedTags, ft))
         if (!matches) return false
       }
-      // 账号池过滤（Phase 2）
-      if (filters.platform || filters.accountStatus) {
-        const account = accountByProfileId.get(profile.profileId)
-        if (!account) return false
-        if (filters.platform && account.platform !== filters.platform) return false
-        if (filters.accountStatus && account.status !== filters.accountStatus) return false
-      }
       return true
     }).sort((a, b) => naturalCompare(a.profileName, b.profileName))
   }, [profiles, filters, defaultCore, cores, accountByProfileId])

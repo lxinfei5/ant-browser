@@ -424,19 +424,23 @@ export interface BrowserGroupWithCount extends BrowserGroup {
   instanceCount: number
 }
 
-// 账号模型相关类型（Phase 2，accountpool）
-export type AccountPlatform = 'xhs' | 'x' | 'other'
-export type AccountStatus = 'active' | 'disabled'
+// 账号模型相关类型（个人账号管理，accountpool）
+// accountRef = 用户名（身份锚点，canonical）；email/phone 为一等字段（可选、唯一）；
+// tags = 该身份关联的服务（一个身份可挂多个服务标签）。platform 已并入 tags（服务即标签），
+// 后端不再提供独立 platform 字段，租约相关模型也已删除。
+// 注意：cooldownUntil 仍由后端持久化并读取（账号健康冷却，仅代理失败冷却写），
+// 但前端编辑表单不展示/不提交它——后端 Update 会从既有行继承该值，故此处类型刻意不含它。
+export type AccountStatus = 'active' | 'disabled' | 'cooldown'
 
 export interface Account {
   accountId: string
   accountName: string
-  platform: string
   accountRef: string
+  email: string
+  phone: string
   boundProfileId: string
   proxyId: string
   status: string
-  cooldownUntil: string
   notes: string
   tags: string[]
   groupId: string
@@ -450,50 +454,15 @@ export interface Account {
 
 export interface AccountInput {
   accountName: string
-  platform: string
   accountRef: string
+  email: string
+  phone: string
   boundProfileId: string
   proxyId: string
   status: string
-  cooldownUntil: string
   notes: string
   tags: string[]
   groupId: string
   credential: Record<string, any>
   metadata: Record<string, any>
-}
-
-// 账号租约（Phase 3/5）
-export interface AccountLease {
-  leaseId: string
-  accountId: string
-  profileId: string
-  workerId: string
-  purpose: string
-  status: string
-  cdpEndpoint: string
-  leasedAt: string
-  expiresAt: string
-  heartbeatAt: string
-  releasedAt: string
-  releaseResult: string
-  autoStarted: number
-  metadata: Record<string, any>
-  createdAt: string
-  updatedAt: string
-}
-
-// CSV 批量导入行（Phase 5）
-export interface AccountBatchRow {
-  platform: string
-  username: string
-  proxyName: string
-  notes: string
-  tags: string[]
-}
-
-export interface AccountBatchImportResult {
-  row: AccountBatchRow
-  account?: Account
-  error: string
 }

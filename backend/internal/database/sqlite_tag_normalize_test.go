@@ -25,7 +25,14 @@ func TestNormalizeStoredTags(t *testing.T) {
 		)`,
 		`CREATE TABLE accounts (
 			account_id TEXT PRIMARY KEY, account_name TEXT NOT NULL,
-			tags TEXT NOT NULL DEFAULT '[]', deleted_at TEXT NOT NULL DEFAULT ''
+			platform TEXT NOT NULL DEFAULT '', account_ref TEXT NOT NULL DEFAULT '',
+			bound_profile_id TEXT NOT NULL DEFAULT '', proxy_id TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'active', cooldown_until TEXT NOT NULL DEFAULT '',
+			notes TEXT NOT NULL DEFAULT '', tags TEXT NOT NULL DEFAULT '[]', group_id TEXT NOT NULL DEFAULT '',
+			credential_json TEXT NOT NULL DEFAULT '{}', metadata_json TEXT NOT NULL DEFAULT '{}',
+			last_used_at TEXT NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			deleted_at TEXT NOT NULL DEFAULT ''
 		)`,
 		`CREATE TABLE browser_tags (tag_name TEXT PRIMARY KEY, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,
 		`CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, desc TEXT NOT NULL DEFAULT '', applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`,

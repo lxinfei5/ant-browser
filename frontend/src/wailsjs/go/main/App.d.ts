@@ -11,17 +11,11 @@ import {logger} from '../models';
 import {launchcode} from '../models';
 import {time} from '../models';
 
-export function AccountPoolActiveLease(arg1:string):Promise<accountpool.Lease>;
-
-export function AccountPoolBatchImport(arg1:Array<accountpool.AccountBatchRow>):Promise<Array<accountpool.BatchImportResult>>;
-
 export function AccountPoolCooldownByProxy(arg1:string,arg2:number):Promise<Array<string>>;
 
 export function AccountPoolCreate(arg1:accountpool.AccountInput):Promise<accountpool.Account>;
 
 export function AccountPoolDelete(arg1:string):Promise<void>;
-
-export function AccountPoolForceRelease(arg1:string,arg2:string,arg3:number):Promise<accountpool.Lease>;
 
 export function AccountPoolGet(arg1:string):Promise<accountpool.Account>;
 
@@ -282,8 +276,6 @@ export function BrowserSnapshotRestore(arg1:string,arg2:string):Promise<void>;
 export function ClearAppLogs():Promise<void>;
 
 export function CreateGroup(arg1:browser.GroupInput):Promise<browser.Group>;
-
-export function CreateProfileForRow(arg1:accountpool.AccountBatchRow):Promise<string>;
 
 export function DeleteGroup(arg1:string):Promise<void>;
 

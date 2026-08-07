@@ -3,8 +3,9 @@ export namespace accountpool {
 	export class Account {
 	    accountId: string;
 	    accountName: string;
-	    platform: string;
 	    accountRef: string;
+	    email: string;
+	    phone: string;
 	    boundProfileId: string;
 	    proxyId: string;
 	    status: string;
@@ -27,8 +28,9 @@ export namespace accountpool {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.accountId = source["accountId"];
 	        this.accountName = source["accountName"];
-	        this.platform = source["platform"];
 	        this.accountRef = source["accountRef"];
+	        this.email = source["email"];
+	        this.phone = source["phone"];
 	        this.boundProfileId = source["boundProfileId"];
 	        this.proxyId = source["proxyId"];
 	        this.status = source["status"];
@@ -44,30 +46,11 @@ export namespace accountpool {
 	        this.deletedAt = source["deletedAt"];
 	    }
 	}
-	export class AccountBatchRow {
-	    platform: string;
-	    username: string;
-	    proxyName: string;
-	    notes: string;
-	    tags: string[];
-	
-	    static createFrom(source: any = {}) {
-	        return new AccountBatchRow(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.platform = source["platform"];
-	        this.username = source["username"];
-	        this.proxyName = source["proxyName"];
-	        this.notes = source["notes"];
-	        this.tags = source["tags"];
-	    }
-	}
 	export class AccountInput {
 	    accountName: string;
-	    platform: string;
 	    accountRef: string;
+	    email: string;
+	    phone: string;
 	    boundProfileId: string;
 	    proxyId: string;
 	    status: string;
@@ -85,8 +68,9 @@ export namespace accountpool {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.accountName = source["accountName"];
-	        this.platform = source["platform"];
 	        this.accountRef = source["accountRef"];
+	        this.email = source["email"];
+	        this.phone = source["phone"];
 	        this.boundProfileId = source["boundProfileId"];
 	        this.proxyId = source["proxyId"];
 	        this.status = source["status"];
@@ -96,82 +80,6 @@ export namespace accountpool {
 	        this.groupId = source["groupId"];
 	        this.credential = source["credential"];
 	        this.metadata = source["metadata"];
-	    }
-	}
-	export class BatchImportResult {
-	    row: AccountBatchRow;
-	    account?: Account;
-	    error: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new BatchImportResult(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.row = this.convertValues(source["row"], AccountBatchRow);
-	        this.account = this.convertValues(source["account"], Account);
-	        this.error = source["error"];
-	    }
-	
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class Lease {
-	    leaseId: string;
-	    accountId: string;
-	    profileId: string;
-	    workerId: string;
-	    purpose: string;
-	    status: string;
-	    cdpEndpoint: string;
-	    leasedAt: string;
-	    expiresAt: string;
-	    heartbeatAt: string;
-	    releasedAt: string;
-	    releaseResult: string;
-	    autoStarted: number;
-	    metadata: Record<string, any>;
-	    createdAt: string;
-	    updatedAt: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new Lease(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.leaseId = source["leaseId"];
-	        this.accountId = source["accountId"];
-	        this.profileId = source["profileId"];
-	        this.workerId = source["workerId"];
-	        this.purpose = source["purpose"];
-	        this.status = source["status"];
-	        this.cdpEndpoint = source["cdpEndpoint"];
-	        this.leasedAt = source["leasedAt"];
-	        this.expiresAt = source["expiresAt"];
-	        this.heartbeatAt = source["heartbeatAt"];
-	        this.releasedAt = source["releasedAt"];
-	        this.releaseResult = source["releaseResult"];
-	        this.autoStarted = source["autoStarted"];
-	        this.metadata = source["metadata"];
-	        this.createdAt = source["createdAt"];
-	        this.updatedAt = source["updatedAt"];
 	    }
 	}
 

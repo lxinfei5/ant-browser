@@ -10,8 +10,8 @@ import { mergeTags } from '../utils/tagMatch'
 import { TagInput } from '../components/TagInput'
 import { GroupSelector } from '../components/GroupSelector'
 import { ProxyPickerModal } from '../components/ProxyPickerModal'
-import { ACCOUNT_PLATFORM_OPTIONS, createAccount, listAccounts, updateAccount } from '../api/accounts'
-import type { AccountInput } from '../types'
+import { createAccount, listAccounts, updateAccount } from '../api/accounts'
+import type { Account, AccountInput } from '../types'
 
 const fallbackLowLaunchArgs = ['--disable-sync', '--no-first-run']
 const directProxyID = '__direct__'
@@ -280,14 +280,16 @@ export function BrowserEditPage() {
   const [launchArgsOpen, setLaunchArgsOpen] = useState(false)
   const [launchArgsHelpOpen, setLaunchArgsHelpOpen] = useState(false)
 
-  // 绑定账号（Phase 2 accountpool）
+  // 绑定账号（个人账号管理 accountpool）
   const [accountForm, setAccountForm] = useState<{
-    platform: string
     accountRef: string
+    email: string
+    phone: string
     notes: string
     tags: string[]
-  }>({ platform: 'xhs', accountRef: '', notes: '', tags: [] })
+  }>({ accountRef: '', email: '', phone: '', notes: '', tags: [] })
   const [existingAccountId, setExistingAccountId] = useState('')
+  const [boundAccount, setBoundAccount] = useState<Account | null>(null)
 
   useEffect(() => {
     const loadData = async () => {
@@ -329,9 +331,11 @@ export function BrowserEditPage() {
         const bound = accounts.find((item) => item.boundProfileId === id)
         if (bound) {
           setExistingAccountId(bound.accountId)
+          setBoundAccount(bound)
           setAccountForm({
-            platform: bound.platform || 'xhs',
             accountRef: bound.accountRef || '',
+            email: bound.email || '',
+            phone: bound.phone || '',
             notes: bound.notes || '',
             tags: bound.tags || [],
           })
@@ -408,23 +412,37 @@ export function BrowserEditPage() {
 
   const saveBoundAccount = async (profileId: string) => {
     if (!profileId) return
-    // 没有填写账号信息则跳过
-    if (!accountForm.accountRef.trim() && !accountForm.notes.trim() && accountForm.tags.length === 0) {
+    // 没有填写任何账号身份信息则跳过
+    if (
+      !accountForm.accountRef.trim() &&
+      !accountForm.email.trim() &&
+      !accountForm.phone.trim() &&
+      !accountForm.notes.trim() &&
+      accountForm.tags.length === 0
+    ) {
       return
     }
+    // accountName 必填：优先用户名，其次邮箱/手机号，兜底已有名称或实例 ID
+    const accountName =
+      accountForm.accountRef.trim() ||
+      accountForm.email.trim() ||
+      accountForm.phone.trim() ||
+      boundAccount?.accountName ||
+      profileId
     const input: AccountInput = {
-      accountName: accountForm.accountRef.trim() || profileId,
-      platform: accountForm.platform,
+      accountName,
       accountRef: accountForm.accountRef.trim(),
+      email: accountForm.email.trim(),
+      phone: accountForm.phone.trim(),
       boundProfileId: profileId,
       proxyId: formData.proxyId || '',
-      status: 'active',
-      cooldownUntil: '',
+      // 编辑时保留后端维护的状态（如 cooldown），避免被身份信息保存重置
+      status: boundAccount?.status || 'active',
       notes: accountForm.notes.trim(),
       tags: accountForm.tags,
       groupId: formData.groupId || '',
-      credential: {},
-      metadata: {},
+      credential: boundAccount?.credential || {},
+      metadata: boundAccount?.metadata || {},
     }
     try {
       if (existingAccountId) {
@@ -682,36 +700,43 @@ export function BrowserEditPage() {
         </div>
       </Card>
 
-      <Card title="账号信息" subtitle="绑定到此实例的账号（Phase 2 账号池）">
+      <Card title="账号信息" subtitle="绑定到此实例的登录身份（在「账号管理」中统一维护）">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormItem label="平台">
-            <Select
-              value={accountForm.platform}
-              onChange={e => setAccountForm(prev => ({ ...prev, platform: e.target.value }))}
-              options={ACCOUNT_PLATFORM_OPTIONS}
-            />
-          </FormItem>
-          <FormItem label="账号用户名" hint="用户名/UID">
+          <FormItem label="用户名" hint="登录用户名 / UID（身份锚点）">
             <Input
               value={accountForm.accountRef}
               onChange={e => { setAccountForm(prev => ({ ...prev, accountRef: e.target.value })); setIsDirty(true) }}
               placeholder="请输入账号用户名"
             />
           </FormItem>
-          <FormItem label="账号备注">
+          <FormItem label="邮箱">
+            <Input
+              value={accountForm.email}
+              onChange={e => { setAccountForm(prev => ({ ...prev, email: e.target.value })); setIsDirty(true) }}
+              placeholder="name@example.com"
+            />
+          </FormItem>
+          <FormItem label="手机号">
+            <Input
+              value={accountForm.phone}
+              onChange={e => { setAccountForm(prev => ({ ...prev, phone: e.target.value })); setIsDirty(true) }}
+              placeholder="选填"
+            />
+          </FormItem>
+          <FormItem label="关联服务标签" hint="一个身份可挂多个服务（如 google / gpt / x）；可在标签册按标签查找实例">
+            <TagInput
+              value={accountForm.tags}
+              onChange={tags => { setAccountForm(prev => ({ ...prev, tags })); setIsDirty(true) }}
+              suggestions={allTags}
+              placeholder="输入服务标签后按回车"
+            />
+          </FormItem>
+          <FormItem label="账号备注" className="md:col-span-2">
             <Textarea
               value={accountForm.notes}
               onChange={e => { setAccountForm(prev => ({ ...prev, notes: e.target.value })); setIsDirty(true) }}
               rows={2}
               placeholder="账号备注信息"
-            />
-          </FormItem>
-          <FormItem label="账号标签" hint="挂在绑定账号上（账号池用）；两者均可在标签册按标签查找实例">
-            <TagInput
-              value={accountForm.tags}
-              onChange={tags => { setAccountForm(prev => ({ ...prev, tags })); setIsDirty(true) }}
-              suggestions={allTags}
-              placeholder="输入标签后按回车"
             />
           </FormItem>
         </div>

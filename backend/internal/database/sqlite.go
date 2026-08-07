@@ -329,6 +329,87 @@ var migrations = []migration{
 			`CREATE INDEX IF NOT EXISTS idx_browser_tags_created_at ON browser_tags(created_at)`,
 		},
 	},
+	{
+		// 可逆增量：仅加列与索引，不删任何东西。email/phone 全默认 ''，故部分唯一索引天然满足。
+		// LOWER() 表达式索引在 DB 层提供大小写不敏感唯一性(Go 侧另做小写归一 + 友好预检)。
+		// WHERE email<>'' AND deleted_at=='' 使空值与软删除行不参与唯一约束(软删后邮箱可复用)。
+		version: 20,
+		desc:    "accounts 添加 email/phone 一等列 + 未删除范围内的 LOWER 部分唯一索引",
+		stmts: []string{
+			// 防御:极老/冲突库可能缺 accounts(正常 v13 已建,这里双保险,与 v19 的 browser_tags 防御同模式)。
+			`CREATE TABLE IF NOT EXISTS accounts (
+				account_id        TEXT PRIMARY KEY,
+				account_name      TEXT NOT NULL,
+				platform          TEXT NOT NULL DEFAULT '',
+				account_ref       TEXT NOT NULL DEFAULT '',
+				bound_profile_id  TEXT NOT NULL DEFAULT '',
+				proxy_id          TEXT NOT NULL DEFAULT '',
+				status            TEXT NOT NULL DEFAULT 'active',
+				cooldown_until    TEXT NOT NULL DEFAULT '',
+				notes             TEXT NOT NULL DEFAULT '',
+				tags              TEXT NOT NULL DEFAULT '[]',
+				group_id          TEXT NOT NULL DEFAULT '',
+				credential_json   TEXT NOT NULL DEFAULT '{}',
+				metadata_json     TEXT NOT NULL DEFAULT '{}',
+				last_used_at      TEXT NOT NULL DEFAULT '',
+				created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				deleted_at        TEXT NOT NULL DEFAULT ''
+			)`,
+			`ALTER TABLE accounts ADD COLUMN email TEXT NOT NULL DEFAULT ''`,
+			`ALTER TABLE accounts ADD COLUMN phone TEXT NOT NULL DEFAULT ''`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_email ON accounts(LOWER(email)) WHERE email<>'' AND COALESCE(deleted_at,'')=''`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_phone ON accounts(LOWER(phone)) WHERE phone<>'' AND COALESCE(deleted_at,'')=''`,
+		},
+	},
+	{
+		// 破坏性：删除租约表并重建 accounts 去除 platform 列(平台已并入 tags)。
+		// platform 数据的折叠(xhs/x -> tags)由 applyMigration 之前在 Go 侧 BackfillPlatformTags 完成
+		// (列一旦被本版本删除就再也读不到，故必须在 v21 之前回填)。
+		// 无任何外键，整个重建在单事务内，失败整体回滚。idx_accounts_platform 随旧表删除而消失。
+		version: 21,
+		desc:    "删除 account_leases 租约表；重建 accounts 去除 platform 列",
+		stmts: []string{
+			`DROP TABLE IF EXISTS account_leases`,
+			// 防御：理论上单事务回滚不会留下 accounts_v21，这里双保险保证可重入。
+			`DROP TABLE IF EXISTS accounts_v21`,
+			`CREATE TABLE accounts_v21 (
+				account_id        TEXT PRIMARY KEY,
+				account_name      TEXT NOT NULL,
+				account_ref       TEXT NOT NULL DEFAULT '',
+				email             TEXT NOT NULL DEFAULT '',
+				phone             TEXT NOT NULL DEFAULT '',
+				bound_profile_id  TEXT NOT NULL DEFAULT '',
+				proxy_id          TEXT NOT NULL DEFAULT '',
+				status            TEXT NOT NULL DEFAULT 'active',
+				cooldown_until    TEXT NOT NULL DEFAULT '',
+				notes             TEXT NOT NULL DEFAULT '',
+				tags              TEXT NOT NULL DEFAULT '[]',
+				group_id          TEXT NOT NULL DEFAULT '',
+				credential_json   TEXT NOT NULL DEFAULT '{}',
+				metadata_json     TEXT NOT NULL DEFAULT '{}',
+				last_used_at      TEXT NOT NULL DEFAULT '',
+				created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				deleted_at        TEXT NOT NULL DEFAULT ''
+			)`,
+			`INSERT INTO accounts_v21
+				(account_id, account_name, account_ref, email, phone, bound_profile_id, proxy_id,
+				 status, cooldown_until, notes, tags, group_id, credential_json, metadata_json,
+				 last_used_at, created_at, updated_at, deleted_at)
+			 SELECT account_id, account_name, account_ref, email, phone, bound_profile_id, proxy_id,
+				 status, cooldown_until, notes, tags, group_id, credential_json, metadata_json,
+				 last_used_at, created_at, updated_at, deleted_at
+			 FROM accounts`,
+			`DROP TABLE accounts`,
+			`ALTER TABLE accounts_v21 RENAME TO accounts`,
+			`CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(status)`,
+			`CREATE INDEX IF NOT EXISTS idx_accounts_bound_profile ON accounts(bound_profile_id)`,
+			`CREATE INDEX IF NOT EXISTS idx_accounts_deleted_at ON accounts(deleted_at)`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_email ON accounts(LOWER(email)) WHERE email<>'' AND COALESCE(deleted_at,'')=''`,
+			`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_phone ON accounts(LOWER(phone)) WHERE phone<>'' AND COALESCE(deleted_at,'')=''`,
+		},
+	},
 	// ── 新版本在此追加，格式：
 	// {
 	//     version: 4,
@@ -404,6 +485,28 @@ func (db *DB) Migrate() error {
 			continue // 已执行，跳过
 		}
 
+		// v21 会物理删除 platform 列与 account_leases 表。在删除之前（列仍存在时）：
+		//   1) 做一次全量物理备份（不可逆重建的兜底，与 .pre-v19 同一模式）；
+		//   2) 把 platform∈{xhs,x} 归一入 tags —— 否则列删除后这部分平台信息将永久丢失。
+		// 该回填幂等，且仅在 platform 列仍存在时工作。
+		if m.version == 21 {
+			if db.dbPath != "" {
+				// 兜底备份是这次不可逆重建唯一的回退来源，必须真实可用：
+				// 先 wal_checkpoint(TRUNCATE) 把 WAL 中已提交数据并入主库文件，
+				// 再复制主文件——否则崩溃/强退后未检查点的最近改动会缺失于兜底，
+				// 而那恰是最需要它的场景。备份失败则中止本次不可逆重建（可安全重试）。
+				if _, err := db.conn.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`); err != nil {
+					return fmt.Errorf("v21 重建前 checkpoint WAL 失败: %w", err)
+				}
+				if err := backupDatabaseFile(db.dbPath, ".pre-v21-account-identity.bak"); err != nil {
+					return fmt.Errorf("v21 重建前备份数据库失败: %w", err)
+				}
+			}
+			if err := db.BackfillPlatformTags(); err != nil {
+				return fmt.Errorf("迁移前回填 platform 到 tags 失败: %w", err)
+			}
+		}
+
 		// 每个版本在事务内执行，保证原子性
 		if err := db.applyMigration(m); err != nil {
 			return fmt.Errorf("迁移版本 %d (%s) 失败: %w", m.version, m.desc, err)
@@ -421,6 +524,11 @@ func (db *DB) Migrate() error {
 	// 幂等,每次启动重跑直至收敛;startup 对本错误仅记录日志、不阻断应用。
 	if db.dbPath != "" {
 		_ = backupDatabaseFile(db.dbPath, ".pre-v19-tag-normalize.bak")
+	}
+	// 平台折叠兜底：正常路径已在 v21 之前回填;此处再幂等重跑一次,
+	// 覆盖「版本已到 v21 但 platform 列因故残留」的边缘库(列不存在时静默 no-op)。
+	if err := db.BackfillPlatformTags(); err != nil {
+		return fmt.Errorf("回填 platform 到 tags 失败: %w", err)
 	}
 	if err := db.NormalizeStoredTags(); err != nil {
 		return fmt.Errorf("标签数据归一矫正失败: %w", err)

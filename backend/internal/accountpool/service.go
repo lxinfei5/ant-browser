@@ -2,8 +2,8 @@ package accountpool
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,34 +12,17 @@ import (
 	"github.com/google/uuid"
 )
 
-// RuntimeProbe 由上层（App）实现，供账号池在选号时排除“绑定实例当前已运行”的账号。
-// 这保证 GUI 手动启动的实例不会被 worker 通过租约抢占（Manual/GUI mutex）。
-// accountpool 作为纯数据/选号层，不直接依赖 browser/launchcode，仅通过该接口读取运行态。
-type RuntimeProbe interface {
-	IsRunning(profileId string) bool
-}
-
-// ProfileFactory 由上层（App）实现，供批量导入为每行创建一个绑定实例，返回实例 ID。
+// ProxyResolver 由上层（App）实现，供账号池在代理失败冷却时解析绑定实例当前使用的代理 ID。
 // 保持 accountpool 不依赖 browser/launchcode。
-type ProfileFactory interface {
-	CreateProfileForRow(row AccountBatchRow) (profileID string, err error)
-}
-
-// ProxyResolver 由上层（App）实现，供账号池解析代理名称/实例到代理 ID（用于批量导入与代理失败冷却）。
 type ProxyResolver interface {
-	// ProxyIDForName 按名称解析代理 ID；未找到或名称不唯一时返回空串。
-	ProxyIDForName(name string) string
 	// ProxyIDForProfile 解析绑定实例当前使用的代理 ID；无则返回空串。
 	ProxyIDForProfile(profileID string) string
 }
 
 // AccountPoolService 账号池业务服务
 type AccountPoolService struct {
-	dao          AccountDAO
-	leaseDAO     LeaseDAO
-	db           *sql.DB
-	runtime      RuntimeProbe
-	profileFac   ProfileFactory
+	dao           AccountDAO
+	db            *sql.DB
 	proxyResolver ProxyResolver
 }
 
@@ -48,40 +31,22 @@ func NewAccountPoolService(dao AccountDAO) *AccountPoolService {
 	return &AccountPoolService{dao: dao}
 }
 
-// SetLeaseDAO 注入租约 DAO（与底层 *sql.DB 同源）
-func (s *AccountPoolService) SetLeaseDAO(dao LeaseDAO) {
-	s.leaseDAO = dao
-}
-
-// SetDB 注入底层 *sql.DB，供租约事务使用
+// SetDB 注入底层 *sql.DB，供 UpdateAccountStatus 作为默认 runner 使用
 func (s *AccountPoolService) SetDB(db *sql.DB) {
 	s.db = db
 }
 
-// SetRuntimeProbe 注入运行态探针，用于选号时排除已运行实例
-func (s *AccountPoolService) SetRuntimeProbe(p RuntimeProbe) {
-	s.runtime = p
-}
-
-// SetProfileFactory 注入批量导入用的实例工厂
-func (s *AccountPoolService) SetProfileFactory(f ProfileFactory) {
-	s.profileFac = f
-}
-
-// SetProxyResolver 注入代理解析器（批量导入按名绑代理 + 代理失败冷却）
+// SetProxyResolver 注入代理解析器（代理失败冷却时按实例解析代理）
 func (s *AccountPoolService) SetProxyResolver(r ProxyResolver) {
 	s.proxyResolver = r
 }
 
+// 联系方式校验（无新依赖，仅用 stdlib regexp）。
 var (
-	// ErrNoAvailableAccount 表示无可用账号（HTTP 409）
-	ErrNoAvailableAccount = errors.New("no available account")
-	// ErrLeaseNotFound 表示租约不存在（HTTP 404）
-	ErrLeaseNotFound = errors.New("lease not found")
-	// ErrLeaseNotHeld 表示租约非 held 状态（HTTP 409）
-	ErrLeaseNotHeld = errors.New("lease is not held")
-	// ErrLeaseStoreUnavailable 表示租约存储未注入（HTTP 503）
-	ErrLeaseStoreUnavailable = errors.New("lease store is not available")
+	// 邮箱：保守口径，非空即需 user@host.tld 形状
+	emailRegexp = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+	// 手机号：归一后允许前导 +，5~15 位数字
+	phoneRegexp = regexp.MustCompile(`^\+?[0-9]{5,15}$`)
 )
 
 // Create 创建账号；若 input.BoundProfileID 非空则绑定到指定实例
@@ -89,11 +54,14 @@ func (s *AccountPoolService) Create(input AccountInput) (*Account, error) {
 	if strings.TrimSpace(input.AccountName) == "" {
 		return nil, fmt.Errorf("accountName is required")
 	}
+	if err := s.validateContactForWrite(input, ""); err != nil {
+		return nil, err
+	}
 	account := buildAccountFromInput(uuid.NewString(), input)
 	account.CreatedAt = time.Now().Format(time.RFC3339)
 	account.UpdatedAt = account.CreatedAt
 	if err := s.dao.Upsert(account); err != nil {
-		return nil, err
+		return nil, mapUniqueContactError(err)
 	}
 	return s.dao.GetByID(account.AccountID)
 }
@@ -104,12 +72,51 @@ func (s *AccountPoolService) Get(accountID string) (*Account, error) {
 	if accountID == "" {
 		return nil, fmt.Errorf("accountId is required")
 	}
-	return s.dao.GetByID(accountID)
+	acc, err := s.dao.GetByID(accountID)
+	if err != nil {
+		return nil, err
+	}
+	s.refreshCooldownExpiry(acc)
+	return acc, nil
 }
 
-// List 查询账号列表，支持 platform / status / group_id 过滤
+// List 查询账号列表，支持 status / group_id 过滤
 func (s *AccountPoolService) List(filter AccountFilter) ([]*Account, error) {
-	return s.dao.List(filter)
+	accounts, err := s.dao.List(filter)
+	if err != nil {
+		return nil, err
+	}
+	for _, acc := range accounts {
+		s.refreshCooldownExpiry(acc)
+	}
+	return accounts, nil
+}
+
+// refreshCooldownExpiry 惰性到期自愈：账号处于 cooldown 且截止时间已过时，
+// 透明地把状态复位为 active 并清空 cooldown_until（冷却不再是单向阀）。
+//
+// 租约子系统被移除后，曾经的「冷却到期自动恢复」路径随之删除，导致代理失败冷却
+// 一旦写入便永不解除。这里在读取侧（List/Get，UI 列表与启动校验都经此）做惰性
+// 恢复，并尽力落库一次（失败不影响本次读取结果，下次读取仍会重试收敛）。
+// 仅在确实发生状态跃迁时写库，收敛后零写入。disabled / 空截止时间的账号不受影响。
+func (s *AccountPoolService) refreshCooldownExpiry(acc *Account) {
+	if acc == nil || acc.Status != AccountStatusCooldown {
+		return
+	}
+	until := strings.TrimSpace(acc.CooldownUntil)
+	if until == "" {
+		return
+	}
+	t, err := time.Parse(time.RFC3339, until)
+	if err != nil || time.Now().Before(t) {
+		return // 未到期或截止时间不可解析：保持冷却
+	}
+	acc.Status = AccountStatusActive
+	acc.CooldownUntil = ""
+	now := time.Now().Format(time.RFC3339)
+	acc.UpdatedAt = now
+	// 尽力落库；s.db 未注入时退回 dao 默认 runner。
+	_ = s.dao.UpdateAccountStatus(s.db, acc.AccountID, AccountStatusActive, "", acc.LastUsedAt, now)
 }
 
 // Update 更新账号；BoundProfileID 为空表示解除绑定
@@ -125,14 +132,22 @@ func (s *AccountPoolService) Update(accountID string, input AccountInput) (*Acco
 	if strings.TrimSpace(input.AccountName) == "" {
 		return nil, fmt.Errorf("accountName is required")
 	}
+	if err := s.validateContactForWrite(input, accountID); err != nil {
+		return nil, err
+	}
 
 	account := buildAccountFromInput(accountID, input)
 	account.CreatedAt = existing.CreatedAt
 	account.UpdatedAt = time.Now().Format(time.RFC3339)
 	account.LastUsedAt = existing.LastUsedAt
 	account.DeletedAt = existing.DeletedAt
+	// cooldown_until 是后端维护的账号健康状态（仅 CooldownAccountsByProxy 写），
+	// 前端编辑表单不携带该字段；这里像 last_used_at 一样从既有行继承，
+	// 避免一次无关编辑把冷却截止时间静默清空（保留 status='cooldown' 却丢失截止时间，
+	// 并绕过 CooldownAccountsByProxy 的“不缩短更长冷却”守卫）。
+	account.CooldownUntil = existing.CooldownUntil
 	if err := s.dao.Upsert(account); err != nil {
-		return nil, err
+		return nil, mapUniqueContactError(err)
 	}
 	return s.dao.GetByID(accountID)
 }
@@ -190,8 +205,9 @@ func buildAccountFromInput(accountID string, input AccountInput) *Account {
 	return &Account{
 		AccountID:      accountID,
 		AccountName:    strings.TrimSpace(input.AccountName),
-		Platform:       strings.TrimSpace(input.Platform),
 		AccountRef:     strings.TrimSpace(input.AccountRef),
+		Email:          normalizeEmail(input.Email),
+		Phone:          normalizePhone(input.Phone),
 		BoundProfileID: strings.TrimSpace(input.BoundProfileID),
 		ProxyID:        strings.TrimSpace(input.ProxyID),
 		Status:         normalizeStatus(input.Status),
@@ -208,6 +224,8 @@ func normalizeStatus(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "disabled":
 		return "disabled"
+	case "cooldown":
+		return "cooldown"
 	case "":
 		return "active"
 	default:
@@ -222,434 +240,88 @@ func nonNilMap(m map[string]any) map[string]any {
 	return m
 }
 
-// ──────────────────────────────────────────────────────────────────────────
-// 租约（Lease）—— accountpool 拥有租约 DB 状态与可用性选择；启动/停止由上层 handler 完成。
-// ──────────────────────────────────────────────────────────────────────────
-
-func (s *AccountPoolService) leaseStoreReady() bool {
-	return s.db != nil && s.leaseDAO != nil
+// normalizeEmail 邮箱归一：trim + 转小写。
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
 }
 
-// Lease 在数据库事务内选号并建立一条 held 租约。
-//
-// 选择条件（必须全部满足）：
-//   - status = 'active' 且未软删除
-//   - 未处于冷却：cooldown_until 为空或早于当前时间
-//   - 已绑定实例（bound_profile_id 非空）
-//   - platform 匹配
-//   - tags_any：若提供，账号 tags 需至少包含其中之一
-//   - 绑定实例当前未运行（通过 RuntimeProbe 排除 GUI 手动启动的实例）
-//
-// 防重复租约依赖唯一偏索引 idx_leases_one_held：同一 account_id 至多一条 status='held'。
-// 若 INSERT 因该唯一约束冲突失败，说明被其他 worker 抢先租用，自动重试下一个候选账号；
-// 若全部候选均不可用，返回 ErrNoAvailableAccount（HTTP 409）。
-//
-// 注意：本方法不启动实例；上层 handler 在租约成立后按 auto_start 决定是否启动。
-func (s *AccountPoolService) Lease(input LeaseInput) (*Account, *Lease, error) {
-	platform := strings.TrimSpace(input.Platform)
-	if platform == "" {
-		return nil, nil, fmt.Errorf("platform is required")
+// normalizePhone 手机号归一：trim + 去除空格/连字符/括号，保留前导 +。
+func normalizePhone(phone string) string {
+	phone = strings.TrimSpace(phone)
+	if phone == "" {
+		return ""
 	}
-	if !s.leaseStoreReady() {
-		return nil, nil, ErrLeaseStoreUnavailable
-	}
-
-	ttl := input.TTLSec
-	if ttl <= 0 {
-		ttl = 900
-	}
-	purpose := strings.TrimSpace(input.Purpose)
-	if purpose == "" {
-		purpose = "scrape"
-	}
-	workerID := strings.TrimSpace(input.WorkerID)
-	tagsAny := normalizeTags(input.TagsAny)
-
-	now := time.Now().UTC()
-	expiresAt := now.Add(time.Duration(ttl) * time.Second).Format(time.RFC3339)
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, nil, fmt.Errorf("开启租约事务失败: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	candidates, err := selectLeaseCandidates(tx, platform)
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(tagsAny) > 0 {
-		candidates = filterByTagsAny(candidates, tagsAny)
-	}
-
-	leaseID := uuid.NewString()
-	for _, acc := range candidates {
-		if strings.TrimSpace(acc.BoundProfileID) == "" {
+	var b strings.Builder
+	b.Grow(len(phone))
+	for _, r := range phone {
+		switch r {
+		case ' ', '-', '(', ')':
 			continue
 		}
-		// Manual/GUI mutex：绑定实例当前正在运行的账号不可被租约抢占。
-		if s.runtime != nil && s.runtime.IsRunning(acc.BoundProfileID) {
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// validateContactForWrite 归一并校验 email/phone 格式，随后做占用预检。
+// excludeID 用于 Update 时排除自身（避免与自身冲突误判）。返回友好中文错误。
+func (s *AccountPoolService) validateContactForWrite(input AccountInput, excludeID string) error {
+	email := normalizeEmail(input.Email)
+	if email != "" && !emailRegexp.MatchString(email) {
+		return fmt.Errorf("邮箱格式不正确")
+	}
+	phone := normalizePhone(input.Phone)
+	if phone != "" && !phoneRegexp.MatchString(phone) {
+		return fmt.Errorf("手机号格式不正确")
+	}
+	return s.checkContactUnique(email, phone, excludeID)
+}
+
+// checkContactUnique 在写库前检查 email/phone 是否已被其他（未删除）账号占用，给出友好中文错误。
+// DB 的 LOWER() 部分唯一索引是兜底；此处预检以返回可读错误。email/phone 均为可选，空串跳过。
+func (s *AccountPoolService) checkContactUnique(email, phone, excludeID string) error {
+	if email == "" && phone == "" {
+		return nil
+	}
+	accounts, err := s.dao.List(AccountFilter{})
+	if err != nil {
+		return err
+	}
+	for _, acc := range accounts {
+		if acc.AccountID == excludeID {
 			continue
 		}
-
-		lease := &Lease{
-			LeaseID:   leaseID,
-			AccountID: acc.AccountID,
-			ProfileID: acc.BoundProfileID,
-			WorkerID:  workerID,
-			Purpose:   purpose,
-			Status:    LeaseStatusHeld,
-			ExpiresAt: expiresAt,
-			LeasedAt:  now.Format(time.RFC3339),
-			Metadata:  map[string]any{},
+		if email != "" && acc.Email != "" && strings.EqualFold(acc.Email, email) {
+			return fmt.Errorf("邮箱已被另一个账号使用")
 		}
-		if err := s.leaseDAO.UpsertLease(tx, lease); err != nil {
-			if isUniqueHeldConflict(err) {
-				// 被其他 worker 抢先租用，重试下一个候选
-				continue
-			}
-			return nil, nil, err
+		if phone != "" && acc.Phone != "" && acc.Phone == phone {
+			return fmt.Errorf("手机号已被另一个账号使用")
 		}
-		if err := tx.Commit(); err != nil {
-			return nil, nil, fmt.Errorf("提交租约事务失败: %w", err)
-		}
-		return acc, lease, nil
 	}
-
-	return nil, nil, ErrNoAvailableAccount
+	return nil
 }
 
-// selectLeaseCandidates 在事务内查询符合基础条件的候选账号（status=active、未冷却、已绑定实例、platform 匹配）。
-// 按 last_used_at 升序（空值最优先），使较少使用的账号优先被租用。
-func selectLeaseCandidates(tx *sql.Tx, platform string) ([]*Account, error) {
-	now := time.Now().UTC().Format(time.RFC3339)
-	rows, err := tx.Query(fmt.Sprintf(`
-		SELECT %s FROM accounts
-		WHERE COALESCE(deleted_at, '') = ''
-		  AND status = ?
-		  AND COALESCE(bound_profile_id, '') != ''
-		  AND (cooldown_until = '' OR cooldown_until <= ?)
-		  AND platform = ?
-		ORDER BY CASE WHEN last_used_at = '' THEN 0 ELSE 1 END ASC, last_used_at ASC, created_at ASC`,
-		accountColumns), AccountStatusActive, now, platform)
-	if err != nil {
-		return nil, fmt.Errorf("查询候选账号失败: %w", err)
-	}
-	defer rows.Close()
-
-	var list []*Account
-	for rows.Next() {
-		a, err := scanAccount(rows)
-		if err != nil {
-			return nil, err
-		}
-		list = append(list, a)
-	}
-	return list, rows.Err()
-}
-
-// filterByTagsAny 过滤出 tags 至少包含 tagsAny 中任一项的账号
-func filterByTagsAny(accounts []*Account, tagsAny []string) []*Account {
-	wanted := make(map[string]struct{}, len(tagsAny))
-	for _, t := range tagsAny {
-		wanted[t] = struct{}{}
-	}
-	out := make([]*Account, 0, len(accounts))
-	for _, a := range accounts {
-		for _, t := range a.Tags {
-			if _, ok := wanted[t]; ok {
-				out = append(out, a)
-				break
-			}
-		}
-	}
-	return out
-}
-
-// isUniqueHeldConflict 判断错误是否为 idx_leases_one_held 唯一约束冲突（被其他 worker 抢先租用）。
-func isUniqueHeldConflict(err error) bool {
+// mapUniqueContactError 把 DB 部分唯一索引冲突（兜底）翻译为友好中文错误；非唯一冲突则原样返回。
+func mapUniqueContactError(err error) error {
 	if err == nil {
-		return false
+		return nil
 	}
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "unique constraint")
-}
-
-// GetLease 查询租约
-func (s *AccountPoolService) GetLease(leaseID string) (*Lease, error) {
-	if !s.leaseStoreReady() {
-		return nil, ErrLeaseStoreUnavailable
+	if !strings.Contains(msg, "unique constraint") && !strings.Contains(msg, "constraint failed") {
+		return err
 	}
-	leaseID = strings.TrimSpace(leaseID)
-	if leaseID == "" {
-		return nil, ErrLeaseNotFound
+	if strings.Contains(msg, "email") {
+		return fmt.Errorf("邮箱已被另一个账号使用")
 	}
-	lease, err := s.leaseDAO.GetLeaseByID(s.db, leaseID)
-	if err != nil {
-		if strings.Contains(err.Error(), "不存在") {
-			return nil, ErrLeaseNotFound
-		}
-		return nil, err
+	if strings.Contains(msg, "phone") {
+		return fmt.Errorf("手机号已被另一个账号使用")
 	}
-	return lease, nil
-}
-
-// GetActiveLease 返回指定账号当前持有的 held 租约；无 held 租约时返回 (nil, nil)。
-// 用于 GUI 展示“账号是否被占用”并提供强制释放入口。
-func (s *AccountPoolService) GetActiveLease(accountID string) (*Lease, error) {
-	if !s.leaseStoreReady() {
-		return nil, ErrLeaseStoreUnavailable
-	}
-	accountID = strings.TrimSpace(accountID)
-	if accountID == "" {
-		return nil, fmt.Errorf("accountId is required")
-	}
-	return s.leaseDAO.GetHeldByAccount(s.db, accountID)
-}
-
-// MarkLeaseStarted 标记租约已启动实例（写入 cdp_endpoint 与 auto_started=1）。
-// 由上层 handler 在成功启动绑定实例后调用。
-func (s *AccountPoolService) MarkLeaseStarted(leaseID, cdpEndpoint string) error {
-	if !s.leaseStoreReady() {
-		return ErrLeaseStoreUnavailable
-	}
-	return s.leaseDAO.UpdateLeaseStarted(s.db, leaseID, cdpEndpoint, 1)
-}
-
-// Heartbeat 续租：更新 heartbeat_at 与 expires_at（=now+ttl）。仅 held 租约可续。
-func (s *AccountPoolService) Heartbeat(leaseID string, ttlSec int) (*Lease, error) {
-	if !s.leaseStoreReady() {
-		return nil, ErrLeaseStoreUnavailable
-	}
-	leaseID = strings.TrimSpace(leaseID)
-	if leaseID == "" {
-		return nil, ErrLeaseNotFound
-	}
-	if ttlSec <= 0 {
-		ttlSec = 900
-	}
-	now := time.Now().UTC()
-	expiresAt := now.Add(time.Duration(ttlSec) * time.Second).Format(time.RFC3339)
-	if err := s.leaseDAO.UpdateLeaseHeartbeat(s.db, leaseID, expiresAt, now.Format(time.RFC3339), now.Format(time.RFC3339)); err != nil {
-		if strings.Contains(err.Error(), "非 held") || strings.Contains(err.Error(), "not held") || strings.Contains(err.Error(), "已过期") {
-			return nil, ErrLeaseNotHeld
-		}
-		if strings.Contains(err.Error(), "不存在") {
-			return nil, ErrLeaseNotFound
-		}
-		return nil, err
-	}
-	return s.leaseDAO.GetLeaseByID(s.db, leaseID)
-}
-
-// Release 释放租约并按结果驱动账号状态：
-//   - ok        -> active（清除冷却）
-//   - risk      -> cooldown（cooldown_until = now + cooldownSec，默认 60min）
-//   - ban       -> banned
-//   - need_login-> need_login
-//
-// 返回释放后的账号状态。是否停止绑定实例由上层 handler 依据 lease.auto_started 决定。
-func (s *AccountPoolService) Release(leaseID, result string, cooldownSec int) (*Lease, *Account, error) {
-	if !s.leaseStoreReady() {
-		return nil, nil, ErrLeaseStoreUnavailable
-	}
-	leaseID = strings.TrimSpace(leaseID)
-	if leaseID == "" {
-		return nil, nil, ErrLeaseNotFound
-	}
-	result = normalizeReleaseResult(result)
-
-	lease, err := s.leaseDAO.GetLeaseByID(s.db, leaseID)
-	if err != nil {
-		if strings.Contains(err.Error(), "不存在") {
-			return nil, nil, ErrLeaseNotFound
-		}
-		return nil, nil, err
-	}
-	if lease.Status != LeaseStatusHeld {
-		return nil, nil, ErrLeaseNotHeld
-	}
-
-	now := time.Now().UTC()
-	nowStr := now.Format(time.RFC3339)
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, nil, fmt.Errorf("开启释放事务失败: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if err := s.leaseDAO.UpdateLeaseStatus(tx, leaseID, LeaseStatusReleased, nowStr, result); err != nil {
-		// 条件更新：并发 Release 的第二个会命中“非 held”，返回 409
-		if strings.Contains(err.Error(), "非 held") || strings.Contains(err.Error(), "not held") {
-			return nil, nil, ErrLeaseNotHeld
-		}
-		if strings.Contains(err.Error(), "不存在") {
-			return nil, nil, ErrLeaseNotFound
-		}
-		return nil, nil, err
-	}
-
-	status, cooldownUntil := releaseAccountStatus(result, now, cooldownSec)
-	if err := s.dao.UpdateAccountStatus(tx, lease.AccountID, status, cooldownUntil, nowStr, nowStr); err != nil {
-		return nil, nil, err
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, nil, fmt.Errorf("提交释放事务失败: %w", err)
-	}
-
-	updated, err := s.leaseDAO.GetLeaseByID(s.db, leaseID)
-	if err != nil {
-		updated = lease
-	}
-	account, err := s.dao.GetByID(lease.AccountID)
-	if err != nil {
-		return updated, nil, nil
-	}
-	return updated, account, nil
-}
-
-// ReleaseAccountStatus 根据释放结果返回账号目标状态与冷却到期时间。
-func ReleaseAccountStatus(result string, now time.Time, cooldownSec int) (status, cooldownUntil string) {
-	return releaseAccountStatus(normalizeReleaseResult(result), now, cooldownSec)
-}
-
-func releaseAccountStatus(result string, now time.Time, cooldownSec int) (status, cooldownUntil string) {
-	switch result {
-	case ReleaseResultRisk:
-		if cooldownSec <= 0 {
-			cooldownSec = 3600 // 默认 60 分钟
-		}
-		return AccountStatusCooldown, now.Add(time.Duration(cooldownSec) * time.Second).Format(time.RFC3339)
-	case ReleaseResultBan:
-		return AccountStatusBanned, ""
-	case ReleaseResultNeedLogin:
-		return AccountStatusNeedLogin, ""
-	default: // ok
-		return AccountStatusActive, ""
-	}
-}
-
-func normalizeReleaseResult(result string) string {
-	switch strings.ToLower(strings.TrimSpace(result)) {
-	case ReleaseResultRisk:
-		return ReleaseResultRisk
-	case ReleaseResultBan:
-		return ReleaseResultBan
-	case ReleaseResultNeedLogin:
-		return ReleaseResultNeedLogin
-	default:
-		return ReleaseResultOK
-	}
-}
-
-// ReclaimExpired 回收已过期的 held 租约：标记为 expired，将账号恢复为 active（除非已设置 release_result）。
-// 返回本次回收的租约列表，供上层（ticker）按 auto_started 决定是否停止绑定实例。
-func (s *AccountPoolService) ReclaimExpired() ([]*Lease, error) {
-	if !s.leaseStoreReady() {
-		return nil, ErrLeaseStoreUnavailable
-	}
-	now := time.Now().UTC()
-	nowStr := now.Format(time.RFC3339)
-
-	expired, err := s.leaseDAO.ListExpired(s.db, nowStr)
-	if err != nil {
-		return nil, err
-	}
-	if len(expired) == 0 {
-		return nil, nil
-	}
-
-	tx, err := s.db.Begin()
-	if err != nil {
-		return nil, fmt.Errorf("开启回收事务失败: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	reclaimed := make([]*Lease, 0, len(expired))
-	for _, lease := range expired {
-		if err := s.leaseDAO.UpdateLeaseStatus(tx, lease.LeaseID, LeaseStatusExpired, nowStr, lease.ReleaseResult); err != nil {
-			// 单条失败不中断整批，记录后继续
-			continue
-		}
-		// 过期回收：将账号恢复为 active 并清除冷却（除非已被显式释放为 ban/need_login 等）
-		if strings.TrimSpace(lease.ReleaseResult) == "" {
-			if err := s.dao.UpdateAccountStatus(tx, lease.AccountID, AccountStatusActive, "", nowStr, nowStr); err != nil {
-				continue
-			}
-		}
-		reclaimed = append(reclaimed, lease)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("提交回收事务失败: %w", err)
-	}
-	return reclaimed, nil
+	return err
 }
 
 // ──────────────────────────────────────────────────────────────────────────
-// 批量导入 + 代理失败冷却（Phase 5）
+// 代理失败冷却（账号健康）
 // ──────────────────────────────────────────────────────────────────────────
-
-// BatchImport 批量导入账号：为每行创建一个绑定实例（经 ProfileFactory），按名解析并绑定代理
-// （未找到/歧义时跳过代理，与上游导入行为一致），再创建账号。单行失败不中断整批。
-// 返回每行的结果（含成功账号或失败原因）。
-func (s *AccountPoolService) BatchImport(rows []AccountBatchRow) []BatchImportResult {
-	results := make([]BatchImportResult, 0, len(rows))
-	for _, row := range rows {
-		res := BatchImportResult{Row: row}
-		platform := strings.TrimSpace(row.Platform)
-		if platform == "" {
-			res.Error = "platform is required"
-			results = append(results, res)
-			continue
-		}
-		if strings.TrimSpace(row.Username) == "" {
-			res.Error = "username is required"
-			results = append(results, res)
-			continue
-		}
-
-		// 1) 创建绑定实例
-		var profileID string
-		if s.profileFac != nil {
-			pid, err := s.profileFac.CreateProfileForRow(row)
-			if err != nil {
-				res.Error = "create profile failed: " + err.Error()
-				results = append(results, res)
-				continue
-			}
-			profileID = strings.TrimSpace(pid)
-		}
-
-		// 2) 按名解析代理（未找到/歧义则不绑定代理）
-		var proxyID string
-		if s.proxyResolver != nil && strings.TrimSpace(row.ProxyName) != "" {
-			proxyID = strings.TrimSpace(s.proxyResolver.ProxyIDForName(row.ProxyName))
-		}
-
-		// 3) 创建账号
-		accountName := strings.TrimSpace(row.Username)
-		account, err := s.Create(AccountInput{
-			AccountName:    accountName,
-			Platform:       platform,
-			AccountRef:     strings.TrimSpace(row.Username),
-			BoundProfileID: profileID,
-			ProxyID:        proxyID,
-			Notes:          row.Notes,
-			Tags:           row.Tags,
-		})
-		if err != nil {
-			res.Error = "create account failed: " + err.Error()
-			results = append(results, res)
-			continue
-		}
-		res.Account = account
-		results = append(results, res)
-	}
-	return results
-}
 
 // CooldownAccountsByProxy 将所有绑定到指定代理的账号置为 cooldown，cooldown_until=now+cooldownSec。
 // 绑定关系二选一：account.proxy_id == proxyID，或 account.bound_profile_id 经 ProxyResolver 解析的代理 == proxyID。
@@ -673,10 +345,6 @@ func (s *AccountPoolService) CooldownAccountsByProxy(proxyID string, cooldownSec
 	affected := make([]string, 0)
 	for _, acc := range accounts {
 		if !s.accountBoundToProxy(acc, proxyID) {
-			continue
-		}
-		// 保留更严重的终态：banned / need_login 不应被 cooldown 覆盖。
-		if acc.Status == AccountStatusBanned || acc.Status == AccountStatusNeedLogin {
 			continue
 		}
 		// 已经在更长的冷却里则不缩短。

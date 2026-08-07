@@ -87,10 +87,6 @@ func (a *App) stopRuntimeServices() {
 			a.speedScheduler.Stop()
 			a.speedScheduler = nil
 		}
-		if a.leaseReclaim != nil {
-			a.leaseReclaim.Stop()
-			a.leaseReclaim = nil
-		}
 		if a.backupScheduler != nil {
 			a.backupScheduler.Stop()
 			a.backupScheduler = nil

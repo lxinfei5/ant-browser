@@ -6,30 +6,17 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        primary: {
-          50: '#fdf8f3',
-          100: '#f9ede0',
-          200: '#f3dbc2',
-          300: '#e9c49d',
-          400: '#dda876',
-          500: '#c9915c',
-          600: '#b87d4a',
-          700: '#9a6840',
-          800: '#7d5538',
-          900: '#664630',
-        },
-        accent: {
-          yellow: '#f5d547',
-          orange: '#f5a962',
-        },
-        background: {
-          DEFAULT: '#e5e7eb',
-          card: '#ffffff',
-        },
-      },
       fontFamily: {
-        sans: ['"Monaco"', '"Microsoft YaHei"', '"PingFang SC"', 'sans-serif'],
+        sans: ['var(--font-sans)'],
+        mono: ['var(--font-mono)'],
+      },
+      // Semantic type scale -> tokens. Prefer these over ad-hoc text-[Npx].
+      fontSize: {
+        'display': 'var(--text-display)',
+        'title': 'var(--text-title)',
+        'body': 'var(--text-body)',
+        'caption': 'var(--text-caption)',
+        'micro': 'var(--text-micro)',
       },
       borderRadius: {
         'sm': 'var(--radius-sm)',
@@ -44,8 +31,10 @@ export default {
         'DEFAULT': 'var(--shadow-sm)',
         'md': 'var(--shadow-md)',
         'lg': 'var(--shadow-lg)',
-        'card': 'var(--shadow-sm)',
-        'card-hover': 'var(--shadow-md)',
+        // Token scale tops out at --shadow-lg; alias the heavier Tailwind
+        // names onto it so raw shadow-xl/2xl stay on the token scale.
+        'xl': 'var(--shadow-lg)',
+        '2xl': 'var(--shadow-lg)',
       },
     },
   },

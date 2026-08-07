@@ -8,7 +8,7 @@ import type { TableColumn } from '../../../shared/components/Table'
 
 import type { BrowserCore, BrowserProfile, BrowserProxy, ProxySpeedTestResult } from '../types'
 import { browserProxyTestSpeed, testProxyConnectivity } from '../api'
-import { indexAccountsByProfileId, platformLabel } from '../api/accounts'
+import { accountStatusLabel, accountStatusVariant, indexAccountsByProfileId } from '../api/accounts'
 import { tagsContain } from '../utils/tagMatch'
 import type { Account } from '../types'
 import type { BrowserViewMode } from './BrowserListLayout'
@@ -229,7 +229,7 @@ function ProfileMoreActions({
       {open && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[9999] w-32 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-1.5 shadow-xl"
+          className="fixed z-[var(--z-dropdown)] w-32 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-1.5 shadow-xl"
           style={{ top: menuPosition.top, left: menuPosition.left }}
         >
           <button
@@ -447,17 +447,6 @@ export function BrowserProfilesPanel({
   const [openMoreProfileId, setOpenMoreProfileId] = useState<string | null>(null)
   const accountByProfileId = indexAccountsByProfileId(accounts)
 
-  const accountStatusVariant = (status: string): ProfileStatusVariant => {
-    if (status === 'active') return 'success'
-    if (status === 'disabled') return 'default'
-    return 'default'
-  }
-  const accountStatusLabel = (status: string) => {
-    if (status === 'active') return '正常'
-    if (status === 'disabled') return '已停用'
-    return status || '-'
-  }
-
   const columns: TableColumn<BrowserProfile>[] = [
     {
       key: 'selection',
@@ -532,18 +521,28 @@ export function BrowserProfilesPanel({
       render: (_, record) => <span className="text-xs">{getProfileCoreLabel(record)}</span>,
     },
     {
-      key: 'platform',
-      title: '平台',
-      width: 110,
+      key: 'account',
+      title: '账号',
+      width: 180,
       render: (_value, record) => {
         const account = accountByProfileId.get(record.profileId)
         if (!account) return <span className="text-xs text-[var(--color-text-muted)]">-</span>
+        const serviceTags = account.tags || []
+        const identity = account.email || account.accountRef || ''
         return (
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-xs truncate" title={account.accountRef || ''}>{platformLabel(account.platform)}</span>
-            {account.accountRef && (
-              <span className="text-[10px] text-[var(--color-text-muted)] truncate" title={account.accountRef}>{account.accountRef}</span>
+          <div className="flex min-w-0 flex-col gap-1">
+            {serviceTags.length > 0 && (
+              <div className="flex min-w-0 flex-wrap gap-1" title={`关联服务：${serviceTags.join('、')}`}>
+                {serviceTags.map((tag) => (
+                  <Badge variant="info" key={tag}>{tag}</Badge>
+                ))}
+              </div>
             )}
+            {identity ? (
+              <span className="truncate text-[10px] text-[var(--color-text-muted)]" title={identity}>{identity}</span>
+            ) : serviceTags.length === 0 ? (
+              <span className="truncate text-xs text-[var(--color-text-muted)]" title={account.accountName}>{account.accountName || '-'}</span>
+            ) : null}
           </div>
         )
       },
@@ -556,15 +555,6 @@ export function BrowserProfilesPanel({
         const account = accountByProfileId.get(record.profileId)
         if (!account) return <span className="text-xs text-[var(--color-text-muted)]">-</span>
         return <Badge variant={accountStatusVariant(account.status)} dot>{accountStatusLabel(account.status)}</Badge>
-      },
-    },
-    {
-      key: 'lastUsedAt',
-      title: '最后使用',
-      width: 160,
-      render: (_value, record) => {
-        const account = accountByProfileId.get(record.profileId)
-        return <span className="text-xs text-[var(--color-text-muted)]">{formatTime(account?.lastUsedAt)}</span>
       },
     },
     {

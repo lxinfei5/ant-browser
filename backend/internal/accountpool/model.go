@@ -1,133 +1,69 @@
 package accountpool
 
-// Account 账号模型（Phase 2）
+// Account 账号模型
 //
 // 列与 accounts 表一一对应；JSON tag 供 Wails 前端与 HTTP API 共用。
 // 约定（与既有 browser_profiles 一致）：
 //   - 时间字段使用 RFC3339 字符串
 //   - tags / credential_json / metadata_json 以 JSON 文本持久化
-//   - status：Phase 2 仅 active|disabled，Phase 3 将扩展 cooldown|banned|need_login
+//   - status：active | disabled | cooldown（cooldown 由代理失败/账号健康驱动）
 //   - 软删除通过 deleted_at 标记
+//
+// 身份锚点（均为可选，仅 account_name 必填）：
+//   - AccountRef 对应 account_ref 列，即「用户名/uid」（Wails/JSON 字段仍为 accountRef）
+//   - Email / Phone 为一等列（v20 起），配合部分唯一索引保证未删除账号间唯一
+//
+// 平台归属不再使用独立 platform 列（v21 起物理删除）：xhs/x 等平台已归一入 tags（服务即标签）。
 type Account struct {
-	AccountID      string            `json:"accountId"`
-	AccountName    string            `json:"accountName"`
-	Platform       string            `json:"platform"`     // xhs | x | other
-	AccountRef     string            `json:"accountRef"`   // 用户名/uid
-	BoundProfileID string            `json:"boundProfileId"`
-	ProxyID        string            `json:"proxyId"`
-	Status         string            `json:"status"` // active | disabled
-	CooldownUntil  string            `json:"cooldownUntil"`
-	Notes          string            `json:"notes"`
+	AccountID      string           `json:"accountId"`
+	AccountName    string           `json:"accountName"`
+	AccountRef     string           `json:"accountRef"` // 用户名/uid
+	Email          string           `json:"email"`      // 邮箱（小写归一，可选）
+	Phone          string           `json:"phone"`      // 手机号（归一，可选）
+	BoundProfileID string           `json:"boundProfileId"`
+	ProxyID        string           `json:"proxyId"`
+	Status         string           `json:"status"` // active | disabled | cooldown
+	CooldownUntil  string           `json:"cooldownUntil"`
+	Notes          string           `json:"notes"`
 	Tags           []string         `json:"tags"`
 	GroupID        string           `json:"groupId"`
 	Credential     map[string]any   `json:"credential"`
 	Metadata       map[string]any   `json:"metadata"`
 	LastUsedAt     string           `json:"lastUsedAt"`
-	CreatedAt      string            `json:"createdAt"`
-	UpdatedAt      string            `json:"updatedAt"`
-	DeletedAt      string            `json:"deletedAt"`
+	CreatedAt      string           `json:"createdAt"`
+	UpdatedAt      string           `json:"updatedAt"`
+	DeletedAt      string           `json:"deletedAt"`
 }
 
 // AccountInput 创建/更新账号的输入
+//
+// 仅 accountName 必填；email/phone/accountRef 均可选（历史仅命名的账号仍可编辑）。
+// 不再接收/写入 platform：平台归属请使用 tags。
 type AccountInput struct {
-	AccountName    string            `json:"accountName"`
-	Platform       string            `json:"platform"`
-	AccountRef     string            `json:"accountRef"`
-	BoundProfileID string            `json:"boundProfileId"`
-	ProxyID        string            `json:"proxyId"`
-	Status         string            `json:"status"`
-	CooldownUntil  string            `json:"cooldownUntil"`
-	Notes          string            `json:"notes"`
-	Tags           []string          `json:"tags"`
-	GroupID        string         `json:"groupId"`
-	Credential     map[string]any `json:"credential"`
-	Metadata       map[string]any `json:"metadata"`
+	AccountName    string           `json:"accountName"`
+	AccountRef     string           `json:"accountRef"`
+	Email          string           `json:"email"`
+	Phone          string           `json:"phone"`
+	BoundProfileID string           `json:"boundProfileId"`
+	ProxyID        string           `json:"proxyId"`
+	Status         string           `json:"status"`
+	CooldownUntil  string           `json:"cooldownUntil"`
+	Notes          string           `json:"notes"`
+	Tags           []string         `json:"tags"`
+	GroupID        string           `json:"groupId"`
+	Credential     map[string]any   `json:"credential"`
+	Metadata       map[string]any   `json:"metadata"`
 }
 
-// AccountFilter 列表过滤条件
+// AccountFilter 列表过滤条件（平台已并入 tags，故不再按 platform 过滤）
 type AccountFilter struct {
-	Platform string
-	Status   string
-	GroupID  string
+	Status  string
+	GroupID string
 }
 
-// Lease 账号租约模型（Phase 3）
-//
-// 列与 account_leases 表一一对应。租约表示某个 worker 在一段时间内独占某个账号及其绑定实例。
-// 约定：
-//   - expires_at / heartbeat_at / released_at 使用 RFC3339 字符串；expires_at 为空表示无过期
-//   - status：held | released | expired | stolen
-//   - purpose：manual | scrape | warmup
-//   - release_result：ok | risk | ban | need_login
-//   - auto_started：1 表示本次租约启动了实例，release/expire 时需由上层停止实例
-//   - metadata_json 以 JSON 文本持久化
-//
-// 防重复租约由数据库唯一偏索引 idx_leases_one_held 保证：同一 account_id 至多一条 status='held'。
-type Lease struct {
-	LeaseID       string         `json:"leaseId"`
-	AccountID     string         `json:"accountId"`
-	ProfileID     string         `json:"profileId"`
-	WorkerID      string         `json:"workerId"`
-	Purpose       string         `json:"purpose"`
-	Status        string         `json:"status"`
-	CDPEndpoint   string         `json:"cdpEndpoint"`
-	LeasedAt      string         `json:"leasedAt"`
-	ExpiresAt     string         `json:"expiresAt"`
-	HeartbeatAt   string         `json:"heartbeatAt"`
-	ReleasedAt    string         `json:"releasedAt"`
-	ReleaseResult string         `json:"releaseResult"`
-	AutoStarted   int            `json:"autoStarted"`
-	Metadata      map[string]any `json:"metadata"`
-	CreatedAt     string         `json:"createdAt"`
-	UpdatedAt     string         `json:"updatedAt"`
-}
-
-// LeaseInput 创建租约的输入
-type LeaseInput struct {
-	Platform string   `json:"platform"`
-	WorkerID string   `json:"workerId"`
-	TTLSec   int      `json:"ttlSec"`
-	Purpose  string   `json:"purpose"`
-	TagsAny  []string `json:"tagsAny"`
-}
-
-// LeaseReleaseResult 释放租约时对账号状态的处置结果
+// AccountStatus 账号状态
 const (
-	ReleaseResultOK        = "ok"
-	ReleaseResultRisk      = "risk"
-	ReleaseResultBan       = "ban"
-	ReleaseResultNeedLogin = "need_login"
-)
-
-// LeaseStatus 租约状态
-const (
-	LeaseStatusHeld     = "held"
-	LeaseStatusReleased = "released"
-	LeaseStatusExpired  = "expired"
-	LeaseStatusStolen   = "stolen"
-)
-
-// AccountStatus 账号状态（Phase 3 扩展）
-const (
-	AccountStatusActive    = "active"
-	AccountStatusDisabled  = "disabled"
+	AccountStatusActive   = "active"
+	AccountStatusDisabled = "disabled"
 	AccountStatusCooldown = "cooldown"
-	AccountStatusBanned    = "banned"
-	AccountStatusNeedLogin = "need_login"
 )
-
-// AccountBatchRow CSV 批量导入的单行输入（Phase 5）。
-type AccountBatchRow struct {
-	Platform  string   `json:"platform"`
-	Username  string   `json:"username"`
-	ProxyName string   `json:"proxyName"`
-	Notes     string   `json:"notes"`
-	Tags      []string `json:"tags"`
-}
-
-// BatchImportResult 单行导入结果：成功时 Account 非空，失败时 Error 非空。
-type BatchImportResult struct {
-	Row     AccountBatchRow `json:"row"`
-	Account *Account        `json:"account"`
-	Error   string          `json:"error"`
-}

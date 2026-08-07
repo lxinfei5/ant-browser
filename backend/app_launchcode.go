@@ -1,11 +1,9 @@
 package backend
 
 import (
-	"ant-chrome/backend/internal/accountpool"
 	"ant-chrome/backend/internal/browser"
 	"ant-chrome/backend/internal/launchcode"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -23,20 +21,6 @@ func (a *App) StartInstanceWithParams(profileId string, params launchcode.Launch
 // StatusInstance 实现 launchcode.BrowserStatusProvider 接口
 func (a *App) StatusInstance(profileId string) (*browser.Profile, error) {
 	return a.BrowserInstanceStatus(profileId)
-}
-
-// IsRunning 实现 accountpool.RuntimeProbe：返回绑定实例当前是否运行。
-// 供账号池在选号时排除“绑定实例已运行”的账号，实现 Manual/GUI mutex。
-// 复用 BrowserInstanceStatus（会按用户数据目录探测并同步 Running 状态）。
-func (a *App) IsRunning(profileId string) bool {
-	if strings.TrimSpace(profileId) == "" {
-		return false
-	}
-	profile, err := a.BrowserInstanceStatus(profileId)
-	if err != nil || profile == nil {
-		return false
-	}
-	return profile.Running
 }
 
 // StopInstance 实现 launchcode.BrowserStopper 接口
@@ -180,4 +164,3 @@ var _ launchcode.AutomationScriptLister = (*App)(nil)
 var _ launchcode.AutomationScriptGetter = (*App)(nil)
 var _ launchcode.AutomationScriptRunner = (*App)(nil)
 var _ launchcode.AutomationScriptRunLister = (*App)(nil)
-var _ accountpool.RuntimeProbe = (*App)(nil)

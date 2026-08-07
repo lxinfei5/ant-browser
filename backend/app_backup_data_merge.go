@@ -205,6 +205,37 @@ WHERE NOT EXISTS (
   WHERE t.profile_id = s.profile_id OR t.code = s.code
 )`,
 		},
+		// accounts(v21 列形,email/phone 一等列,无 platform):reset 恢复时整表重灌;
+		// 非 reset(合并)时按 account_id 去重跳过。email/phone 列在下方按源库是否存在再决定是否带上,
+		// 以兼容 v21 之前的旧备份(有 platform、无 email/phone)。
+		// 兜底:目标库对 LOWER(email)/LOWER(phone) 建了部分唯一索引(v20/v21),任何一行冲突都会让
+		// 整条 INSERT 报错并回滚整个数据库导入(所有表同一事务)。故两套插入都用 OR IGNORE 逐行跳过冲突,
+		// 保证一个冲突账号不拖垮其余全部数据的恢复。
+		{
+			name: "accounts",
+			insertAll: `INSERT OR IGNORE INTO accounts (account_id, account_name, account_ref, bound_profile_id, proxy_id, status, cooldown_until, notes, tags, group_id, credential_json, metadata_json, last_used_at, created_at, updated_at, deleted_at)
+SELECT account_id, account_name, COALESCE(account_ref,''), COALESCE(bound_profile_id,''), COALESCE(proxy_id,''), COALESCE(status,'active'), COALESCE(cooldown_until,''), COALESCE(notes,''), COALESCE(tags,'[]'), COALESCE(group_id,''), COALESCE(credential_json,'{}'), COALESCE(metadata_json,'{}'), COALESCE(last_used_at,''), created_at, updated_at, COALESCE(deleted_at,'') FROM src.accounts`,
+			insertSafe: `INSERT OR IGNORE INTO accounts (account_id, account_name, account_ref, bound_profile_id, proxy_id, status, cooldown_until, notes, tags, group_id, credential_json, metadata_json, last_used_at, created_at, updated_at, deleted_at)
+SELECT s.account_id, s.account_name, COALESCE(s.account_ref,''), COALESCE(s.bound_profile_id,''), COALESCE(s.proxy_id,''), COALESCE(s.status,'active'), COALESCE(s.cooldown_until,''), COALESCE(s.notes,''), COALESCE(s.tags,'[]'), COALESCE(s.group_id,''), COALESCE(s.credential_json,'{}'), COALESCE(s.metadata_json,'{}'), COALESCE(s.last_used_at,''), s.created_at, s.updated_at, COALESCE(s.deleted_at,'')
+FROM src.accounts s
+WHERE NOT EXISTS (
+  SELECT 1 FROM accounts t WHERE t.account_id = s.account_id
+)`,
+		},
+		// browser_tags:标签注册表;reset 恢复时重灌,合并时按 tag_name(NOCASE)去重跳过。
+		// 兜底:tag_name 主键是 NOCASE 的,旧备份可能含 'Foo'/'foo' 大小写重复行(v19 之前大小写敏感),
+		// 用 OR IGNORE 逐行跳过,避免一行冲突回滚整个导入。
+		{
+			name: "browser_tags",
+			insertAll: `INSERT OR IGNORE INTO browser_tags (tag_name, created_at)
+SELECT tag_name, created_at FROM src.browser_tags`,
+			insertSafe: `INSERT OR IGNORE INTO browser_tags (tag_name, created_at)
+SELECT s.tag_name, s.created_at
+FROM src.browser_tags s
+WHERE NOT EXISTS (
+  SELECT 1 FROM browser_tags t WHERE t.tag_name = s.tag_name
+)`,
+		},
 	}
 
 	for _, item := range mergeTables {
@@ -247,6 +278,66 @@ WHERE NOT EXISTS (
 				}
 			}
 		}
+		if item.name == "accounts" {
+			// 仅当源备份的 accounts 已含 email/phone 列(v21 及以后)才一并恢复这两个一等身份列;
+			// 否则按默认列集插入(email/phone 落 v20 默认 ''),兼容 v21 之前的旧备份。
+			hasEmail, err := backupSrcColumnExists(tx, item.name, "email")
+			if err != nil {
+				return err
+			}
+			hasPhone, err := backupSrcColumnExists(tx, item.name, "phone")
+			if err != nil {
+				return err
+			}
+			// 平台折叠:v21 把 platform 列物理删除前,会在本地库就地 BackfillPlatformTags(xhs/x -> tags)。
+			// 但恢复旧备份走的是 ATTACH + INSERT...SELECT,目标库已无 platform 列、回填又只在启动 Migrate 跑,
+			// 若不在这里折叠,旧备份中的 platform 归属会被静默丢弃。故当源含 platform 列时,
+			// 用 json_insert 把 xhs/x 追加进 tags(缺失才追加;非法 tags JSON 视为空重建),与就地去重逻辑对齐。
+			hasPlatform, err := backupSrcColumnExists(tx, item.name, "platform")
+			if err != nil {
+				return err
+			}
+			// tagsFold(列名) 生成把 platform 折进 tags 的 SQL 表达式;无 platform 列时退回原 COALESCE。
+			tagsFold := func(col string) string {
+				base := "COALESCE(" + col + ",'[]')"
+				if !hasPlatform {
+					return base
+				}
+				p := "lower(trim(COALESCE(platform,'')))"
+				return "CASE WHEN " + p + " IN ('xhs','x')" +
+					" AND NOT EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(" + col + ") THEN " + col + " ELSE '[]' END) je WHERE lower(trim(je.value)) = " + p + ")" +
+					" THEN json_insert(CASE WHEN json_valid(" + col + ") THEN " + col + " ELSE '[]' END, '$[#]', " + p + ")" +
+					" ELSE " + base + " END"
+			}
+			if hasEmail && hasPhone {
+				if resetFirst {
+					sqlText = `INSERT OR IGNORE INTO accounts (account_id, account_name, account_ref, bound_profile_id, proxy_id, status, cooldown_until, notes, tags, group_id, credential_json, metadata_json, last_used_at, created_at, updated_at, deleted_at, email, phone)
+SELECT account_id, account_name, COALESCE(account_ref,''), COALESCE(bound_profile_id,''), COALESCE(proxy_id,''), COALESCE(status,'active'), COALESCE(cooldown_until,''), COALESCE(notes,''), ` + tagsFold("tags") + `, COALESCE(group_id,''), COALESCE(credential_json,'{}'), COALESCE(metadata_json,'{}'), COALESCE(last_used_at,''), created_at, updated_at, COALESCE(deleted_at,''), COALESCE(email,''), COALESCE(phone,'')
+FROM src.accounts`
+				} else {
+					sqlText = `INSERT OR IGNORE INTO accounts (account_id, account_name, account_ref, bound_profile_id, proxy_id, status, cooldown_until, notes, tags, group_id, credential_json, metadata_json, last_used_at, created_at, updated_at, deleted_at, email, phone)
+SELECT s.account_id, s.account_name, COALESCE(s.account_ref,''), COALESCE(s.bound_profile_id,''), COALESCE(s.proxy_id,''), COALESCE(s.status,'active'), COALESCE(s.cooldown_until,''), COALESCE(s.notes,''), ` + tagsFold("s.tags") + `, COALESCE(s.group_id,''), COALESCE(s.credential_json,'{}'), COALESCE(s.metadata_json,'{}'), COALESCE(s.last_used_at,''), s.created_at, s.updated_at, COALESCE(s.deleted_at,''), COALESCE(s.email,''), COALESCE(s.phone,'')
+FROM src.accounts s
+WHERE NOT EXISTS (
+  SELECT 1 FROM accounts t WHERE t.account_id = s.account_id
+)`
+				}
+			} else if hasPlatform {
+				// 旧备份(无 email/phone,有 platform):除默认列集外,还需把 platform 折进 tags。
+				if resetFirst {
+					sqlText = `INSERT OR IGNORE INTO accounts (account_id, account_name, account_ref, bound_profile_id, proxy_id, status, cooldown_until, notes, tags, group_id, credential_json, metadata_json, last_used_at, created_at, updated_at, deleted_at)
+SELECT account_id, account_name, COALESCE(account_ref,''), COALESCE(bound_profile_id,''), COALESCE(proxy_id,''), COALESCE(status,'active'), COALESCE(cooldown_until,''), COALESCE(notes,''), ` + tagsFold("tags") + `, COALESCE(group_id,''), COALESCE(credential_json,'{}'), COALESCE(metadata_json,'{}'), COALESCE(last_used_at,''), created_at, updated_at, COALESCE(deleted_at,'')
+FROM src.accounts`
+				} else {
+					sqlText = `INSERT OR IGNORE INTO accounts (account_id, account_name, account_ref, bound_profile_id, proxy_id, status, cooldown_until, notes, tags, group_id, credential_json, metadata_json, last_used_at, created_at, updated_at, deleted_at)
+SELECT s.account_id, s.account_name, COALESCE(s.account_ref,''), COALESCE(s.bound_profile_id,''), COALESCE(s.proxy_id,''), COALESCE(s.status,'active'), COALESCE(s.cooldown_until,''), COALESCE(s.notes,''), ` + tagsFold("s.tags") + `, COALESCE(s.group_id,''), COALESCE(s.credential_json,'{}'), COALESCE(s.metadata_json,'{}'), COALESCE(s.last_used_at,''), s.created_at, s.updated_at, COALESCE(s.deleted_at,'')
+FROM src.accounts s
+WHERE NOT EXISTS (
+  SELECT 1 FROM accounts t WHERE t.account_id = s.account_id
+)`
+				}
+			}
+		}
 		if item.name == "browser_profiles" {
 			hasRestoreLastSession, err := backupSrcColumnExists(tx, item.name, "restore_last_session")
 			if err != nil {
@@ -278,7 +369,11 @@ WHERE NOT EXISTS (
 			inserted = total
 		}
 		stats.Imported += inserted
-		if !resetFirst && total > inserted {
+		// 冲突跳过计数:OR IGNORE 命中的行不发改变更,差额即被跳过的行数。
+		// accounts/browser_tags 在 reset 模式也可能因唯一索引(email/phone、NOCASE tag_name)冲突而跳过,
+		// 故对这两张表 reset 模式也统计 skipped;其余表 reset 已清表,无冲突源,保持原口径。
+		conflictAware := !resetFirst || item.name == "accounts" || item.name == "browser_tags"
+		if conflictAware && total > inserted {
 			stats.Skipped += total - inserted
 		}
 	}
