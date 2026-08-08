@@ -598,10 +598,6 @@ export function InstallAutomationRuntime() {
   return window['go']['main']['App']['InstallAutomationRuntime']();
 }
 
-export function IsRunning(arg1) {
-  return window['go']['main']['App']['IsRunning'](arg1);
-}
-
 export function ListGroups() {
   return window['go']['main']['App']['ListGroups']();
 }
@@ -624,10 +620,6 @@ export function OpenUserDataDir(arg1) {
 
 export function OpenUserDataRoot() {
   return window['go']['main']['App']['OpenUserDataRoot']();
-}
-
-export function ProxyIDForName(arg1) {
-  return window['go']['main']['App']['ProxyIDForName'](arg1);
 }
 
 export function ProxyIDForProfile(arg1) {

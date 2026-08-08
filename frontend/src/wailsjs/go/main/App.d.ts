@@ -309,8 +309,6 @@ export function GetRunningInstances():Promise<Array<browser.Profile>>;
 
 export function InstallAutomationRuntime():Promise<Record<string, any>>;
 
-export function IsRunning(arg1:string):Promise<boolean>;
-
 export function ListGroups():Promise<Array<browser.GroupWithCount>>;
 
 export function MoveInstancesToGroup(arg1:Array<string>,arg2:string):Promise<void>;
@@ -322,8 +320,6 @@ export function OpenProjectRoot():Promise<void>;
 export function OpenUserDataDir(arg1:string):Promise<void>;
 
 export function OpenUserDataRoot():Promise<void>;
-
-export function ProxyIDForName(arg1:string):Promise<string>;
 
 export function ProxyIDForProfile(arg1:string):Promise<string>;
 

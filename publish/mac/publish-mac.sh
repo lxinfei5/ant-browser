@@ -101,6 +101,7 @@ require_cmd() {
 require_cmd python3
 require_cmd ditto
 require_cmd wails
+require_cmd codesign
 
 if [[ -z "$VERSION" ]]; then
   VERSION="$(python3 - "$ROOT_DIR/wails.json" <<'PY'
@@ -233,21 +234,66 @@ fi
 mkdir -p "$APP_MACOS_DIR/bin"
 cp "$XRAY_SRC" "$APP_MACOS_DIR/bin/xray"
 cp "$SINGBOX_SRC" "$APP_MACOS_DIR/bin/sing-box"
-cp "$CONFIG_INIT_SRC" "$APP_MACOS_DIR/config.yaml"
 chmod +x "$APP_MACOS_DIR/bin/xray" "$APP_MACOS_DIR/bin/sing-box"
 
+# 种子文件(config.yaml / chrome/README.md)放进 Contents/Resources，而非 Contents/MacOS。
+# 原因:macOS 的 codesign 会把 MacOS/ 下的所有文件当作嵌套代码对象逐个签名,生成基于 xattr 的
+# 逐文件签名;而 zip/unzip 会剥离这些 xattr,导致解压后 seal 校验失败(a sealed resource is missing)。
+# 把纯数据种子放到 Resources/(Apple 以资源方式哈希进顶层 seal,不产生逐文件代码签名)即可让
+# 压缩包在 unzip 解压后仍通过 codesign --deep --strict 校验。运行时 EnsureWritableLayout 会
+# 优先从 Resources 读取这些种子并拷贝到用户可写状态目录(见 apppath.go)。
+APP_RESOURCES_DIR="$APP_STAGE/Contents/Resources"
+mkdir -p "$APP_RESOURCES_DIR"
+cp "$CONFIG_INIT_SRC" "$APP_RESOURCES_DIR/config.yaml"
+
 if [[ -f "$CHROME_README_SRC" ]]; then
-  mkdir -p "$APP_MACOS_DIR/chrome"
-  cp "$CHROME_README_SRC" "$APP_MACOS_DIR/chrome/README.md"
+  mkdir -p "$APP_RESOURCES_DIR/chrome"
+  cp "$CHROME_README_SRC" "$APP_RESOURCES_DIR/chrome/README.md"
 fi
 
-ditto "$APP_STAGE" "$APP_EXPORT"
+# 关键:wails build(第 [3/4] 步)先对 bundle 自签,随后本步才注入 bin/xray、bin/sing-box 与
+# 种子文件 —— 这些新增文件不在原 seal 内,导致签名失效("a sealed resource is missing")。
+# 故必须在所有文件就位后重新 ad-hoc 签名(与本应用一贯的分发签名方式一致,无开发者证书/公证,
+# 首次启动需右键打开)。--deep 连同 bin/ 下的运行时可执行一起签。
+#
+# 注意:签名与打包必须在非 iCloud 的临时目录完成。若工程目录在 ~/Documents(iCloud Drive),
+# 系统会在 .app 上反复重打 com.apple.FinderInfo 等扩展属性 —— codesign 视之为
+# "resource fork / detritus not allowed" 拒绝 seal,且签完后又被重新打上导致 seal 立刻失效。
+# 因此把组装好的 bundle ditto 到 TMPDIR,清 xattr、签名、打包,再只把产物(.app/.zip)拷回 output。
+SIGN_WORK="$(mktemp -d "${TMPDIR:-/tmp}/profilepool-sign.XXXXXX")"
+trap 'rm -rf "$SIGN_WORK"' EXIT
+SIGN_APP="$SIGN_WORK/ProfilePool.app"
+ditto "$APP_STAGE" "$SIGN_APP"
+xattr -cr "$SIGN_APP" 2>/dev/null || true
+codesign --force --deep --sign - "$SIGN_APP"
+# 不吞掉 codesign 的诊断输出 —— 校验失败时它就是定位根因的唯一线索。
+if ! codesign --verify --deep --strict "$SIGN_APP"; then
+  echo "[ERROR] 重签名后 seal 校验失败(bundle 位于临时目录 $SIGN_WORK,脚本退出后会被清理)" >&2
+  exit 1
+fi
+
+# 以干净已签 bundle 作为导出与打包源(--norsrc 防 iCloud 在拷回时附带的 xattr 进入 zip)。
+ditto --norsrc "$SIGN_APP" "$APP_EXPORT"
 rm -f "$OUTPUT_DIR/$ZIP_NAME"
-ditto -c -k --sequesterRsrc --keepParent "$APP_EXPORT" "$OUTPUT_DIR/$ZIP_NAME"
+# 注意两点:
+#  1) 不要用 --sequesterRsrc —— 它会把资源 fork/xattr 抽离成 AppleDouble(._*)文件,破坏 seal。
+#  2) 加 --norsrc 排除资源 fork 与 xattr,避免任何扩展属性在 zip 里变成 AppleDouble(._*)垃圾,
+#     导致解压后被 codesign 判为 "file added"。
+ditto -c -k --norsrc --keepParent "$SIGN_APP" "$OUTPUT_DIR/$ZIP_NAME"
+
+# 对拷回的 .app 做一次尽力校验:zip 才是权威分发产物;但若输出目录在 iCloud(如 ~/Documents),
+# 系统可能在拷回后给 .app 重打 xattr 使其 seal 失效 —— 此处如实提示,不让"坏 .app"无声通过。
+if codesign --verify --deep --strict "$APP_EXPORT" >/dev/null 2>&1; then
+  EXPORT_SEAL="valid"
+else
+  EXPORT_SEAL="invalid"
+  echo "[WARN] 导出目录中的 .app 校验未通过(若输出目录在 iCloud 会重打 xattr 所致)。" >&2
+  echo "       请使用 zip 解压后的 App 测试/分发;zip 内的 bundle 已通过 seal 校验。" >&2
+fi
 
 echo "Artifacts generated:"
-echo "  - $APP_EXPORT"
-echo "  - $OUTPUT_DIR/$ZIP_NAME"
+echo "  - $OUTPUT_DIR/$ZIP_NAME   [distribution 权威产物, seal 已校验]"
+echo "  - $APP_EXPORT   [seal: $EXPORT_SEAL]"
 
 if [[ "$KEEP_STAGING" -ne 1 ]]; then
   rm -rf "$APP_STAGE"

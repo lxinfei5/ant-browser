@@ -78,25 +78,37 @@ func ensureWritableLayoutForOS(appRoot, goos string) error {
 	}
 
 	if err := copyFileIfMissing(
-		filepath.Join(root.installRoot, "config.yaml"),
+		seedPath(root.installRoot, "config.yaml"),
 		filepath.Join(root.stateRoot, "config.yaml"),
 	); err != nil {
 		return err
 	}
 	if err := copyFileIfMissing(
-		filepath.Join(root.installRoot, "proxies.yaml"),
+		seedPath(root.installRoot, "proxies.yaml"),
 		filepath.Join(root.stateRoot, "proxies.yaml"),
 	); err != nil {
 		return err
 	}
 	if err := copyDirIfMissing(
-		filepath.Join(root.installRoot, "chrome"),
+		seedPath(root.installRoot, "chrome"),
 		filepath.Join(root.stateRoot, "chrome"),
 	); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+// seedPath 返回随包默认种子文件(config.yaml / proxies.yaml / chrome)的位置。
+// 新版 mac 发布包把它们放在 Contents/Resources(避免 codesign 把 Contents/MacOS 下的
+// 非可执行文件当嵌套代码对象逐个签名,导致 zip 解压后 seal 失效);旧包/开发态则仍在
+// Contents/MacOS(即 installRoot 本身)。此处按 Resources 优先、MacOS 兜底,保证两种布局都能被找到。
+func seedPath(installRoot, name string) string {
+	resources := filepath.Join(installRoot, "..", "Resources", name)
+	if _, err := os.Stat(resources); err == nil {
+		return filepath.Clean(resources)
+	}
+	return filepath.Join(installRoot, name)
 }
 
 func detect(appRoot string) roots {

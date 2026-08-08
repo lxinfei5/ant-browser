@@ -58,15 +58,23 @@ The repository now includes the first macOS writable-state implementation for ap
 
 ## Current Implementation Note
 
-The current initial macOS packaging scaffold intentionally places helper binaries and seed files under:
+The macOS packaging now places helper binaries and seed files under:
 
-- `Ant Browser.app/Contents/MacOS/bin`
-- `Ant Browser.app/Contents/MacOS/config.yaml`
-- `Ant Browser.app/Contents/MacOS/chrome/README.md`
+- `ProfilePool.app/Contents/MacOS/bin` (executables only: `xray`, `sing-box`)
+- `ProfilePool.app/Contents/Resources/config.yaml`
+- `ProfilePool.app/Contents/Resources/chrome/README.md`
 
-This is not the prettiest final bundle layout, but it matches the current runtime path resolution and avoids a larger refactor in Phase 1.
+`Contents/MacOS/` must stay **executables-only** (the main binary + `bin/`). Apple's codesign
+signs every file under `Contents/MacOS/` as a nested code object, storing per-file signatures in
+xattrs that `unzip` strips — so any data file there makes the shipped zip fail
+`codesign --verify --deep --strict` after extraction. Seed data files therefore live in
+`Contents/Resources/` (signed as data, unzip-safe); the runtime resolves them via
+`apppath.seedPath` (Resources first, `Contents/MacOS` fallback for old bundles/dev).
 
-After the first internal build is stable, the bundle layout can be reviewed and moved toward `Contents/Resources` if needed.
+The pipeline signs **last**, ad-hoc, in a non-iCloud temp dir, then packages with
+`ditto -c -k --norsrc --keepParent` (never `--sequesterRsrc`). See `publish-mac.sh` comments.
+The `.zip` is the authoritative distribution artifact; the loose `.app` beside it may show an
+invalid seal if the output dir is under iCloud (`~/Documents`), which re-stamps xattrs on copy-back.
 
 ## Why macOS Looks More Complex
 
