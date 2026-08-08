@@ -3,6 +3,7 @@ import { Bell, User, Settings, Check, Trash2, Info, AlertCircle, CheckCircle } f
 import { Link } from 'react-router-dom'
 import clsx from 'clsx'
 import { useNotificationStore, type Notification } from '../../store/notificationStore'
+import { ToolbarDivider } from '../components/ToolbarDivider'
 
 function NotificationDropdown({
   notifications,
@@ -76,11 +77,11 @@ function NotificationDropdown({
               )}
             >
               <div className="flex gap-3">
-                <div className="shrink-0 mt-0.5">
+                <div className="shrink-0 mt-[3px]">
                   {getIcon(notification.type)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2">
                     <p className={clsx(
                       'text-sm truncate',
                       notification.read ? 'text-[var(--color-text-secondary)]' : 'text-[var(--color-text-primary)] font-medium'
@@ -88,7 +89,7 @@ function NotificationDropdown({
                       {notification.title}
                     </p>
                     {!notification.read && (
-                      <span className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0 mt-1.5" />
+                      <span className="w-2 h-2 rounded-full bg-[var(--accent)] shrink-0" />
                     )}
                   </div>
                   <p className="text-xs text-[var(--color-text-muted)] mt-0.5 line-clamp-2">
@@ -181,7 +182,7 @@ export function Topbar() {
           <Settings className="w-4 h-4" strokeWidth={1.75} />
         </Link>
 
-        <div className="w-px h-5 bg-[var(--border-subtle)] mx-1.5" />
+        <ToolbarDivider />
 
         <Link
           to="/profile"

@@ -57,7 +57,7 @@ export function CoreEditModal({
             <p className="text-xs text-[var(--color-text-muted)] mt-1">验证中...</p>
           )}
           {!pathValidating && pathValidResult && (
-            <p className={`text-xs mt-1 ${pathValidResult.valid ? 'text-green-600' : 'text-red-500'}`}>
+            <p className={`text-xs mt-1 ${pathValidResult.valid ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
               {pathValidResult.message}
             </p>
           )}

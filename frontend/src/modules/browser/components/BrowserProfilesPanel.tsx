@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { Copy, Download, FolderOpen, Key, Loader2, MoreHorizontal, Play, Puzzle, Repeat2, RotateCcw, Settings, Square, Trash2, Wifi } from 'lucide-react'
 
 import { Badge, Button, Card, Table } from '../../../shared/components'
+import { ToolbarDivider } from '../../../shared/components/ToolbarDivider'
 import type { TableColumn } from '../../../shared/components/Table'
 
 import type { BrowserCore, BrowserProfile, BrowserProxy, ProxySpeedTestResult } from '../types'
@@ -72,8 +73,8 @@ function formatProxyLabel(profile: BrowserProfile, proxy?: BrowserProxy): string
 
 function ProxyLatency({ result }: { result?: ProxySpeedTestResult | null }) {
   if (!result) return null
-  if (!result.ok) return <span className="text-xs text-red-500">失败</span>
-  const color = result.latencyMs < 200 ? 'text-green-500' : result.latencyMs < 500 ? 'text-yellow-500' : 'text-red-500'
+  if (!result.ok) return <span className="text-xs text-[var(--danger)]">失败</span>
+  const color = result.latencyMs < 200 ? 'text-[var(--success)]' : result.latencyMs < 500 ? 'text-[var(--warning)]' : 'text-[var(--danger)]'
   return <span className={`text-xs font-medium ${color}`}>{result.latencyMs}ms</span>
 }
 
@@ -328,12 +329,12 @@ function BrowserProfileCard({
         ${isSelected ? 'border-[var(--color-accent)] ring-1 ring-[var(--color-accent)]/20' : 'border-[var(--color-border-default)] hover:border-[var(--color-accent)]'}
       `}
     >
-      <div className="flex flex-col gap-3 pb-3 border-b border-[var(--color-border-muted)]/50 shrink-0">
+      <div className="flex flex-col gap-3 pb-3 border-b border-[var(--border-subtle)] shrink-0">
         <div className="flex justify-between items-start gap-2">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <input
               type="checkbox"
-              className="w-4 h-4 rounded cursor-pointer accent-[var(--color-accent)] mt-0.5 shrink-0"
+              className="w-4 h-4 rounded cursor-pointer accent-[var(--color-accent)] shrink-0"
               checked={isSelected}
               onChange={() => onToggleSelect(profile.profileId)}
             />
@@ -369,13 +370,13 @@ function BrowserProfileCard({
               {isStarting ? '启动中' : '启动'}
             </Button>
           )}
-          <span className="w-px h-4 bg-[var(--color-border-muted)] mx-1"></span>
+          <ToolbarDivider />
           <Button size="sm" variant="ghost" onClick={() => onRestart(profile.profileId)} title="重启" className="px-3" disabled={isBusy}><RotateCcw className="w-4 h-4 mr-1.5" />重启</Button>
           <Button size="sm" variant="ghost" onClick={() => onOpenKeywords(profile)} title="关键字管理" className="px-3" disabled={isBusy}><Key className="w-4 h-4 mr-1.5" />关键字</Button>
           <Button size="sm" variant="ghost" onClick={() => onOpenExtensions(profile)} title="插件配置" className="px-3" disabled={isBusy}><Puzzle className="w-4 h-4 mr-1.5" />插件</Button>
           <Link to={`/browser/edit/${profile.profileId}`}><Button size="sm" variant="ghost" title="配置" className="px-3" disabled={isBusy}><Settings className="w-4 h-4 mr-1.5" />配置</Button></Link>
           <Button size="sm" variant="ghost" onClick={() => onOpenCopy(profile)} title="克隆" className="px-3" disabled={isBusy}><Copy className="w-4 h-4 mr-1.5" />克隆</Button>
-          <Button size="sm" variant="ghost" onClick={() => onDelete(profile.profileId)} title="删除" className="px-3 text-red-500 hover:text-red-600 hover:bg-red-50" disabled={isBusy}><Trash2 className="w-4 h-4 mr-1.5" />删除</Button>
+          <Button size="sm" variant="ghost" onClick={() => onDelete(profile.profileId)} title="删除" className="px-3 text-[var(--danger)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)]" disabled={isBusy}><Trash2 className="w-4 h-4 mr-1.5" />删除</Button>
         </div>
       </div>
 
@@ -400,11 +401,11 @@ function BrowserProfileCard({
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-xs text-[var(--color-text-muted)] font-medium">上次更新时间</span>
-          <span className="text-xs text-[var(--color-text-primary)]">{formatTime(profile.updatedAt)}</span>
+          <span className="text-xs font-numeric text-[var(--color-text-primary)]">{formatTime(profile.updatedAt)}</span>
         </div>
       </div>
 
-      <div className="border-t border-[var(--color-border-muted)]/50 pt-2 flex items-start gap-2 flex-1 min-h-0">
+      <div className="border-t border-[var(--border-subtle)] pt-2 flex items-start gap-2 flex-1 min-h-0">
         <span className="text-xs font-medium text-[var(--color-text-primary)] shrink-0 pt-0.5">系统关键字</span>
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
           <KeywordInlineRow keywords={profile.keywords || []} />
@@ -580,7 +581,7 @@ export function BrowserProfilesPanel({
     {
       key: 'updatedAt',
       title: '上次更新',
-      render: formatTime,
+      render: (value) => <span className="font-numeric">{formatTime(value)}</span>,
     },
     {
       key: 'actions',
@@ -617,7 +618,7 @@ export function BrowserProfilesPanel({
               onOpenDataDir={() => onOpenDataDir(record)}
               onExport={() => onExport(record)}
             />
-            <Button size="sm" variant="ghost" onClick={() => onDelete(record.profileId)} title="删除" disabled={isBusy}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
+            <Button size="sm" variant="ghost" onClick={() => onDelete(record.profileId)} title="删除" disabled={isBusy}><Trash2 className="w-3.5 h-3.5 text-[var(--danger)]" /></Button>
           </div>
         )
       },

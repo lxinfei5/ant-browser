@@ -382,7 +382,7 @@ export function ProxyPoolIPHealthDetailModal({
             <div className="text-xs text-[var(--color-text-muted)]">
               代理ID：{detail.proxyId} | 来源：{detail.source} | 时间：{detail.updatedAt}
             </div>
-            {!detail.ok && <div className="text-sm text-red-500">{detail.error || '检测失败'}</div>}
+            {!detail.ok && <div className="text-sm text-[var(--danger)]">{detail.error || '检测失败'}</div>}
             <pre className="max-h-[420px] overflow-auto text-xs leading-5 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)] p-3">
               {JSON.stringify(detail.rawData || {}, null, 2)}
             </pre>

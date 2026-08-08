@@ -193,7 +193,7 @@ export function GroupTreeNav({ groups, selectedGroupId, onSelectGroup, onRefresh
 
       {/* 创建分组弹窗 */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-modal)]" onClick={() => setShowCreateModal(false)}>
+        <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-[var(--z-modal)]" onClick={() => setShowCreateModal(false)}>
           <div className="bg-[var(--bg-overlay)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] p-4 w-80" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">新建分组</h3>
             <input
@@ -230,7 +230,7 @@ export function GroupTreeNav({ groups, selectedGroupId, onSelectGroup, onRefresh
 
       {/* 重命名弹窗 */}
       {editingGroup && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[var(--z-modal)]" onClick={() => setEditingGroup(null)}>
+        <div className="fixed inset-0 bg-[var(--overlay-bg)] flex items-center justify-center z-[var(--z-modal)]" onClick={() => setEditingGroup(null)}>
           <div className="bg-[var(--bg-overlay)] rounded-[var(--radius-lg)] shadow-[var(--shadow-lg)] p-4 w-80" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-medium mb-3 text-[var(--text-primary)]">重命名分组</h3>
             <input

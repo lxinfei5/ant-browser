@@ -197,7 +197,7 @@ function IPFLYGuide() {
 
       {activeDetailTab === 'ipfly' && (
         <>
-      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
+      <div className="rounded-xl border border-[var(--warning)]/30 bg-[var(--warning-soft)] p-4 text-[var(--warning)]">
         <div className="text-sm font-semibold">IPFLY 在大陆网络下使用链式代理落地</div>
         <div className="mt-2 text-xs leading-5">
           第一层填本机 VPN / Mihomo 出口，第二层填 IPFLY 网关。流量路径：浏览器 → xray → 本机 VPN → IPFLY → 目标网站。

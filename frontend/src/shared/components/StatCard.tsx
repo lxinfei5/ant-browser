@@ -28,7 +28,7 @@ export function StatCard({ title, value, icon, trend }: StatCardProps) {
             <p className="text-[11px] text-[var(--text-muted)] font-semibold tracking-[0.06em] uppercase">
               {title}
             </p>
-            <p className="text-2xl font-semibold text-[var(--text-primary)] mt-2 tabular-nums">
+            <p className="text-2xl font-semibold font-numeric text-[var(--text-primary)] mt-2 tabular-nums">
               {value}
             </p>
             {trend && (

@@ -226,17 +226,17 @@ export function BrowserDetailPage() {
         </div>
       </div>
 
-      {/* Tab 导航 */}
-      <div className="flex border-b border-[var(--color-border)]">
+      {/* Tab 导航 — 所有 tab 统一 border-b-2 基线，未激活用透明占位，避免切换时文字上下跳 */}
+      <div className="flex border-b border-[var(--border-subtle)]">
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={[
-              'px-4 py-2 text-sm font-medium transition-colors',
+              'px-4 py-2 -mb-px text-sm font-medium border-b-2 transition-colors',
               activeTab === tab.key
-                ? 'border-b-2 border-[var(--color-primary)] text-[var(--color-primary)]'
-                : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]',
+                ? 'border-[var(--color-primary)] text-[var(--color-primary)]'
+                : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]',
             ].join(' ')}
           >
             {tab.label}
@@ -359,7 +359,7 @@ export function BrowserDetailPage() {
 
           {profile.lastError && (
             <Card title="最近错误" subtitle="最近一次启动或运行失败原因">
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 whitespace-pre-line">
+              <div className="rounded-lg border border-[var(--danger)]/30 bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)] whitespace-pre-line">
                 {profile.lastError}
               </div>
             </Card>
@@ -367,7 +367,7 @@ export function BrowserDetailPage() {
 
           {profile.runtimeWarning && (
             <Card title="运行提示" subtitle="当前实例处于部分可用状态">
-              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 whitespace-pre-line">
+              <div className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning-soft)] px-4 py-3 text-sm text-[var(--warning)] whitespace-pre-line">
                 {profile.runtimeWarning}
               </div>
             </Card>

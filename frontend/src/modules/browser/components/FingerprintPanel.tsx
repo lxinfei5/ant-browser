@@ -287,9 +287,9 @@ export function FingerprintPanel({ value, onChange }: FingerprintPanelProps) {
   const advancedText = serialize(config).join('\n')
   const validation = validateFingerprintArgs(value)
   const validationTone = validation.issues.some(issue => issue.level === 'error')
-    ? 'border-red-200 bg-red-50 text-red-700'
+    ? 'border-[var(--danger)]/30 bg-[var(--danger-soft)] text-[var(--danger)]'
     : validation.issues.some(issue => issue.level === 'warning')
-      ? 'border-amber-200 bg-amber-50 text-amber-700'
+      ? 'border-[var(--warning)]/30 bg-[var(--warning-soft)] text-[var(--warning)]'
       : 'border-emerald-200 bg-emerald-50 text-emerald-700'
   const validationTitle = validation.valid
     ? validation.issues.some(issue => issue.level === 'warning') ? '配置可用，有提示' : '配置有效'

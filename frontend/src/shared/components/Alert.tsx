@@ -42,13 +42,15 @@ export function Alert({
   return (
     <div
       className={clsx(
-        'flex gap-3 p-4 rounded-lg border',
+        'flex items-start gap-3 p-4 rounded-lg border',
         styles[type],
         className
       )}
     >
-      {showIcon && <Icon className="w-5 h-5 flex-shrink-0 mt-0.5" />}
-      
+      {showIcon && (
+        <Icon className="w-5 h-5 flex-shrink-0 mt-[3px]" aria-hidden="true" />
+      )}
+
       <div className="flex-1 min-w-0">
         {title && (
           <h4 className="font-semibold mb-1">{title}</h4>
@@ -61,7 +63,7 @@ export function Alert({
       {closable && (
         <button
           onClick={onClose}
-          className="p-0.5 rounded hover:bg-black/10 transition-colors flex-shrink-0"
+          className="p-0.5 rounded hover:bg-[var(--bg-hover)] transition-colors flex-shrink-0"
         >
           <X className="w-4 h-4" />
         </button>

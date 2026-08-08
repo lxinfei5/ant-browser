@@ -119,7 +119,7 @@ export function BrowserListDialogs({
       >
         <div className="space-y-3">
           <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--color-bg-secondary)]">
-            <XCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+            <XCircle className="w-5 h-5 text-[var(--danger)] mt-0.5 shrink-0" />
             <p className="text-sm text-[var(--color-text-primary)]">{proxyErrorMsg}</p>
           </div>
           <p className="text-sm text-[var(--color-text-muted)]">请前往编辑页面重新选择可用链路；如果是订阅导入，先刷新订阅并确认该节点仍存在。</p>
@@ -250,7 +250,7 @@ export function BrowserListDialogs({
       >
         <div className="space-y-2 text-sm text-[var(--color-text-secondary)]">
           <p>确定彻底删除实例「{permanentDeleteConfirm.profile?.profileName || '未命名实例'}」？</p>
-          <p className="text-red-500">这会删除配置、浏览器用户数据、快照、快捷码和插件绑定，删除后不可恢复。</p>
+          <p className="text-[var(--danger)]">这会删除配置、浏览器用户数据、快照、快捷码和插件绑定，删除后不可恢复。</p>
         </div>
       </Modal>
 

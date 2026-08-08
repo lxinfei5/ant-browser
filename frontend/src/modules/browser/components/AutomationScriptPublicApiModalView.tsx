@@ -131,10 +131,10 @@ export function AutomationScriptPublicApiModalView({
       <div className="space-y-4">
         <div
           ref={testSectionRef}
-          className="rounded-xl border border-slate-200/70 bg-slate-100 px-3 py-3 shadow-inner"
+          className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-hover)] px-3 py-3 shadow-inner"
         >
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="text-sm font-semibold text-slate-800">
+            <div className="text-sm font-semibold text-[var(--text-primary)]">
               测试接口
             </div>
           </div>

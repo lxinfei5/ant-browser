@@ -111,8 +111,8 @@ function FingerprintCheckRow({ label, expected, actual, mode }: { label: string;
   const statusClass = status === 'match' || status === 'version_compatible'
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
     : status === 'mismatch'
-      ? 'bg-amber-50 text-amber-700 border-amber-200'
-      : 'bg-slate-50 text-slate-600 border-slate-200'
+      ? 'bg-[var(--warning-soft)] text-[var(--warning)] border-[var(--warning)]/30'
+      : 'bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
   return (
     <div className="grid grid-cols-[120px_minmax(0,1fr)_minmax(0,1fr)_70px] gap-3 items-start py-2 border-b border-[var(--color-border)] last:border-b-0 text-sm">
       <div className="text-[var(--color-text-muted)]">{label}</div>
@@ -144,11 +144,11 @@ const matrixStatusLabels: Record<string, string> = {
 }
 
 function matrixStatusClass(status: string): string {
-  if (status === 'removed' || status === 'not_effective') return 'bg-red-50 text-red-700 border-red-200'
-  if (status === 'disabled') return 'bg-slate-50 text-slate-600 border-slate-200'
-  if (status === 'overridden') return 'bg-slate-50 text-slate-600 border-slate-200'
+  if (status === 'removed' || status === 'not_effective') return 'bg-[var(--danger-soft)] text-[var(--danger)] border-[var(--danger)]/30'
+  if (status === 'disabled') return 'bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
+  if (status === 'overridden') return 'bg-[var(--bg-hover)] text-[var(--text-secondary)] border-[var(--border-subtle)]'
   if (status === 'converted' || status === 'injected' || status === 'inferred') return 'bg-blue-50 text-blue-700 border-blue-200'
-  if (status === 'kept_unconfirmed' || status === 'kept_unknown' || status === 'pending') return 'bg-amber-50 text-amber-700 border-amber-200'
+  if (status === 'kept_unconfirmed' || status === 'kept_unknown' || status === 'pending') return 'bg-[var(--warning-soft)] text-[var(--warning)] border-[var(--warning)]/30'
   return 'bg-emerald-50 text-emerald-700 border-emerald-200'
 }
 
@@ -195,7 +195,7 @@ function FingerprintMatrixReport({ report }: { report: BrowserFingerprintCapabil
         </div>
       </div>
       {report.warnings?.length > 0 && (
-        <div className="px-3 py-2 border-b border-[var(--color-border)] bg-amber-50 text-xs text-amber-700 space-y-1">
+        <div className="px-3 py-2 border-b border-[var(--color-border)] bg-[var(--warning-soft)] text-xs text-[var(--warning)] space-y-1">
           {report.warnings.map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}
         </div>
       )}

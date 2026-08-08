@@ -253,7 +253,7 @@ export function ExtensionHistoryModal({ open, records, onClose, onPick, onClear 
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="rounded-full bg-[var(--color-bg-muted)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">{extensionHistoryActionLabel(record.action)}</span>
-                      <span className={record.ok ? 'text-xs text-green-600' : 'text-xs text-red-500'}>{record.ok ? '成功' : '失败'}</span>
+                      <span className={record.ok ? 'text-xs text-[var(--success)]' : 'text-xs text-[var(--danger)]'}>{record.ok ? '成功' : '失败'}</span>
                       <span className="text-xs text-[var(--color-text-muted)]">{formatExtensionTime(record.createdAt)}</span>
                     </div>
                     <div className="mt-1 truncate text-sm font-medium text-[var(--color-text-primary)]">{record.name || record.extensionId || record.query}</div>

@@ -356,7 +356,7 @@ export function AccountsPage() {
                 </div>
 
                 <div className="mt-auto flex items-center justify-between gap-2 border-t border-[var(--border-subtle)] pt-2.5">
-                  <span className="text-[11px] text-[var(--text-muted)]" title={`创建：${formatTime(account.createdAt)}`}>
+                  <span className="text-[11px] font-numeric text-[var(--text-muted)]" title={`创建：${formatTime(account.createdAt)}`}>
                     更新 {formatTime(account.updatedAt)}
                   </span>
                   <div className="flex items-center gap-1.5">

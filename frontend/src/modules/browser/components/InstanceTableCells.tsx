@@ -73,7 +73,7 @@ export function BatchToolbar({
         <Button size="sm" variant="secondary" onClick={onBatchStop} loading={batchLoading}>
           <Square className="w-3.5 h-3.5" />停止
         </Button>
-        <Button size="sm" variant="ghost" onClick={onBatchDelete} className="text-red-500 hover:text-red-600">
+        <Button size="sm" variant="ghost" onClick={onBatchDelete} className="text-[var(--danger)] hover:text-[var(--danger)]">
           <Trash2 className="w-3.5 h-3.5" />删除
         </Button>
       </div>

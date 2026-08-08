@@ -23,7 +23,21 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
+  /* Progressive enhancement: tabular digits where the active face supports it
+     (SF / Segoe UI). PingFang SC & Microsoft YaHei lack a tnum glyph, so real
+     numeric columns still use var(--font-numeric) — this is a safe no-op there. */
+  font-variant-numeric: tabular-nums;
   transition: background-color var(--dur-med) var(--ease), color var(--dur-med) var(--ease);
+}
+
+/* recharts axis ticks / labels render <text class="recharts-text"> with only an
+   inline `fill`; font-family inherits through SVG. Pin chart numerals to the
+   numeric chain so Y-axis values, category labels and tooltip numbers align.
+   Tooltip & Legend are HTML and inherit from body already. */
+.recharts-text,
+.recharts-cartesian-axis-tick-value {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
 }
 
 /* 选中文本样式 */

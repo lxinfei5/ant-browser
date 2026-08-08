@@ -45,6 +45,9 @@
   /* --- focus ring --- */
   --ring: rgba(13, 148, 136, 0.40);
 
+  /* --- modal overlay backdrop (single source; both themes) --- */
+  --overlay-bg: rgba(4, 8, 12, 0.62);
+
   /* --- radii --- */
   --radius-sm: 6px;
   --radius-md: 8px;
@@ -58,12 +61,26 @@
   --shadow-lg: 0 16px 40px rgba(16, 24, 40, 0.14);
 
   /* --- typography --- */
-  /* System UI stack (offline-safe, no webfont). Sans first; mono reserved
-     for IDs / proxy strings / code via var(--font-mono). */
+  /* System UI stack (offline-safe, no webfont). Sans for body text; mono is
+     the canonical chain for numbers / IDs / proxy strings / code / chart ticks.
+     Font matching is per-character: macOS renders Latin via -apple-system (SF)
+     and CJK via PingFang SC; Windows renders Latin via Segoe UI and CJK via
+     Microsoft YaHei. 'Microsoft YaHei' is never installed on stock macOS (only
+     bundled inside Office.app, invisible to the browser), so it safely no-ops
+     there and resolves on Windows. */
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, 'SF Mono', Monaco, 'Cascadia Code', 'Courier New',
-    monospace;
+  /* Mono chain: ui-monospace resolves to SF Mono on Safari (harmlessly skipped
+     by Chromium/Electron), Monaco is the preferred macOS face, Menlo its macOS
+     fallback, Cascadia Mono modern Windows 11, Consolas the guaranteed Windows
+     ClearType anchor. PingFang SC has no tabular-digit glyph and Microsoft
+     YaHei has no documented tnum, so numeric columns MUST use this chain rather
+     than relying on tabular-nums alone. */
+  --font-mono: ui-monospace, Monaco, Menlo, 'Cascadia Mono', Consolas,
+    'Courier New', monospace;
+  /* Semantic alias: numbers (stats, table value columns, timestamps, latency,
+     chart ticks). Single source of truth — points at the mono chain. */
+  --font-numeric: var(--font-mono);
   --text-display: 24px;
   --text-title: 17px;
   --text-body: 13px;
@@ -127,6 +144,9 @@
   --color-warning: var(--warning);
   --color-error: var(--danger);
   --color-info: var(--info);
+
+  /* legacy alias for the overlay backdrop */
+  --color-overlay: var(--overlay-bg);
 
   color-scheme: light;
 }

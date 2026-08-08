@@ -96,8 +96,8 @@ function ToastItem({ toast: t }: { toast: Toast }) {
         aria-hidden="true"
         className={`absolute left-0 top-0 bottom-0 w-[3px] ${barStyles[t.type]}`}
       />
-      <Icon className={`w-5 h-5 flex-shrink-0 mt-0.5 ${iconStyles[t.type]}`} />
-      <p className="flex-1 text-[13px] font-medium text-[var(--text-primary)]">{t.message}</p>
+      <Icon className={`w-5 h-5 flex-shrink-0 mt-[3px] ${iconStyles[t.type]}`} aria-hidden="true" />
+      <p className="flex-1 text-[13px] font-medium text-[var(--text-primary)] leading-5">{t.message}</p>
       <button
         onClick={() => removeToast(t.id)}
         className="p-1 rounded-[var(--radius-sm)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)] transition-colors"

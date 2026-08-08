@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 import clsx from 'clsx'
-import { ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUp, ArrowDown, Inbox } from 'lucide-react'
 
 export type SortOrder = 'asc' | 'desc' | undefined
 
@@ -78,7 +78,7 @@ export function Table<T extends Record<string, any>>({
     onSort({ column: column.key, order: newOrder });
   };
 
-  // 渲染排序图标
+  // 渲染排序图标（两态同尺寸，避免点击排序时表头横向抖动）
   const renderSortIcon = (column: TableColumn<T>) => {
     if (!column.sortable) return null;
 
@@ -93,7 +93,7 @@ export function Table<T extends Record<string, any>>({
 
     return (
       <span className="text-[var(--color-text-muted)] ml-1 opacity-40 group-hover:opacity-70">
-        <ArrowUp className="w-3 h-3" />
+        <ArrowUp className="w-3.5 h-3.5" />
       </span>
     );
   };
@@ -133,9 +133,7 @@ export function Table<T extends Record<string, any>>({
               <td colSpan={columns.length} className="px-4 py-16 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-12 h-12 rounded-full bg-[var(--color-bg-muted)] flex items-center justify-center">
-                    <svg className="w-6 h-6 text-[var(--color-text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                    </svg>
+                    <Inbox className="w-6 h-6 text-[var(--color-text-muted)]" strokeWidth={1.75} />
                   </div>
                   <span className="text-sm text-[var(--color-text-muted)]">{emptyText}</span>
                 </div>
@@ -155,7 +153,7 @@ export function Table<T extends Record<string, any>>({
                   <td
                     key={col.key}
                     className={clsx(
-                      'px-4 py-3 text-[13px] text-[var(--text-secondary)]',
+                      'px-4 py-3 text-[13px] text-[var(--text-secondary)] tabular-nums',
                       col.align === 'center' && 'text-center',
                       col.align === 'right' && 'text-right'
                     )}

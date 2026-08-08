@@ -9,6 +9,9 @@ export default {
       fontFamily: {
         sans: ['var(--font-sans)'],
         mono: ['var(--font-mono)'],
+        // Semantic numeric chain: stats, table value columns, timestamps,
+        // latency, chart ticks. Same single source as mono (base.css).
+        numeric: ['var(--font-numeric)'],
       },
       // Semantic type scale -> tokens. Prefer these over ad-hoc text-[Npx].
       fontSize: {

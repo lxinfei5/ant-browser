@@ -74,7 +74,7 @@ export function Sidebar() {
             </h2>
           </div>
         ) : (
-          <Logo size={28} className="flex-shrink-0" />
+          <Logo size={24} className="flex-shrink-0" />
         )}
       </div>
 

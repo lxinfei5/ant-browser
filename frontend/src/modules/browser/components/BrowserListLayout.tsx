@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { Archive, CheckCircle, ChevronRight, ChevronUp, Edit2, LayoutGrid, List, Play, Plus, RefreshCw, Sliders, Star, Trash2, Upload, XCircle } from 'lucide-react'
 
 import { Button, Card, FormItem, Input, Modal, Switch, Table, Textarea } from '../../../shared/components'
+import { ToolbarDivider } from '../../../shared/components/ToolbarDivider'
 import type { TableColumn } from '../../../shared/components/Table'
 
 import type { BrowserCore, BrowserCoreInput, BrowserGroupWithCount, BrowserProxy, BrowserSettings } from '../types'
@@ -118,7 +119,7 @@ export function BrowserListHeader({
               <List className="w-4 h-4" />
             </button>
           </div>
-          <span className="w-px h-4 bg-[var(--color-border-muted)] mx-1 self-center"></span>
+          <ToolbarDivider />
           <Link to="/browser/edit/new">
             <Button size="sm">
               <Play className="w-4 h-4" />新建配置
@@ -376,7 +377,7 @@ export function BrowserCoreEditorModal({
             <Button variant="secondary" onClick={onValidate}>验证</Button>
           </div>
           {coreValidation && (
-            <div className={`flex items-center gap-1 mt-1 text-sm ${coreValidation.valid ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`flex items-center gap-1 mt-1 text-sm ${coreValidation.valid ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
               {coreValidation.valid ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
               {coreValidation.message}
             </div>

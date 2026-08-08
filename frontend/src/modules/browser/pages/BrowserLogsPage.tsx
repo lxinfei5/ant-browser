@@ -23,8 +23,8 @@ const levelVariant = (level: string) => {
 
 const levelColor = (level: string) => {
   switch (level) {
-    case 'ERROR': return 'text-red-500'
-    case 'WARN': return 'text-yellow-500'
+    case 'ERROR': return 'text-[var(--danger)]'
+    case 'WARN': return 'text-[var(--warning)]'
     case 'DEBUG': return 'text-[var(--color-text-muted)]'
     default: return 'text-[var(--color-text-secondary)]'
   }

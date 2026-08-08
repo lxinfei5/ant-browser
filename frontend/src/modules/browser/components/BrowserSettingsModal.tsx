@@ -163,7 +163,7 @@ export function BrowserSettingsModal({ open, onClose, settings: initSettings, co
               <Button variant="secondary" onClick={handleValidateCorePath}>验证</Button>
             </div>
             {coreValidation && (
-              <div className={`flex items-center gap-1 mt-1 text-sm ${coreValidation.valid ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`flex items-center gap-1 mt-1 text-sm ${coreValidation.valid ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
                 {coreValidation.valid ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
                 {coreValidation.message}
               </div>

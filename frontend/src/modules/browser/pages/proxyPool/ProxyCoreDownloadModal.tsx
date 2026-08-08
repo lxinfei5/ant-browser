@@ -112,7 +112,7 @@ export function ProxyCoreDownloadModal({
         <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] px-3 py-2 text-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="text-[var(--color-text-muted)]">内核状态</span>
-            <span className={status?.installed ? 'text-green-600' : 'text-red-500'}>
+            <span className={status?.installed ? 'text-[var(--success)]' : 'text-[var(--danger)]'}>
               {statusLoading ? '检测中...' : status?.message || '未知'}
             </span>
           </div>
@@ -162,14 +162,14 @@ export function ProxyCoreDownloadModal({
         {progress && (
           <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-3">
             <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-              <span className={progress.phase === 'error' ? 'text-red-500' : 'text-[var(--color-text-primary)]'}>
+              <span className={progress.phase === 'error' ? 'text-[var(--danger)]' : 'text-[var(--color-text-primary)]'}>
                 {progress.message}
               </span>
               <span className="text-[var(--color-text-muted)]">{progress.progress}%</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full border border-[var(--color-border-muted)] bg-[var(--color-bg-surface)]">
               <div
-                className={progress.phase === 'error' ? 'h-2 bg-red-500 transition-all' : 'h-2 bg-[var(--color-accent)] transition-all'}
+                className={progress.phase === 'error' ? 'h-2 bg-[var(--danger)] transition-all' : 'h-2 bg-[var(--color-accent)] transition-all'}
                 style={{ width: `${Math.max(0, Math.min(100, progress.progress))}%` }}
               />
             </div>

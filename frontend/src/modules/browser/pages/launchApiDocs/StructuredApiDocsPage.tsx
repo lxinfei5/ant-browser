@@ -25,7 +25,7 @@ function MethodBadge({ method }: { method: StructuredApiMethod }) {
   const className = {
     GET: 'border-emerald-200 bg-emerald-50 text-emerald-700',
     POST: 'border-sky-200 bg-sky-50 text-sky-700',
-    PUT: 'border-amber-200 bg-amber-50 text-amber-700',
+    PUT: 'border-[var(--warning)]/30 bg-[var(--warning-soft)] text-[var(--warning)]',
     DELETE: 'border-rose-200 bg-rose-50 text-rose-700',
     WS: 'border-violet-200 bg-violet-50 text-violet-700',
   }[method]
@@ -231,8 +231,8 @@ function StructuredApiDetailPage({
       )}
 
       {endpoint.notes.length > 0 ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50/60 px-5 py-4 shadow-[var(--shadow-sm)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">注意</p>
+        <section className="rounded-2xl border border-[var(--warning)]/30 bg-[var(--warning-soft)] px-5 py-4 shadow-[var(--shadow-sm)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--warning)]">注意</p>
           <ul className="mt-3 space-y-2 text-sm leading-6 text-[var(--color-text-secondary)]">
             {endpoint.notes.map((note) => (
               <li key={note}>{note}</li>

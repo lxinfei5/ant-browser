@@ -1,21 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
-    <linearGradient id="pp-grad" x1="0" y1="0" x2="1" y2="1">
+    <linearGradient id="pp-ripple" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#0F766E"/>
       <stop offset="0.55" stop-color="#14B8A6"/>
-      <stop offset="1" stop-color="#5EEAD4"/>
-    </linearGradient>
-    <linearGradient id="pp-grad-back" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0F766E" stop-opacity="0.55"/>
-      <stop offset="1" stop-color="#2DD4BF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
     </linearGradient>
   </defs>
-  <!-- back card (third profile) -->
-  <rect x="30" y="6" width="26" height="26" rx="8" fill="url(#pp-grad-back)"/>
-  <!-- middle card (second profile) -->
-  <rect x="22" y="14" width="26" height="26" rx="8" fill="url(#pp-grad)" opacity="0.75"/>
-  <!-- front card with identity cutout -->
-  <path fill="url(#pp-grad)" fill-rule="evenodd" d="M14 24 h26 a8 8 0 0 1 8 8 v18 a8 8 0 0 1 -8 8 h-18 a8 8 0 0 1 -8 -8 v-18 a8 8 0 0 1 8 -8 z
-       M31 36 a5 5 0 1 0 0.001 0 z
-       M31 43 c-5 0 -8.5 2.6 -8.5 6.2 c0 1.2 1 2.3 2.3 2.3 h12.4 c1.3 0 2.3 -1.1 2.3 -2.3 c0 -3.6 -3.5 -6.2 -8.5 -6.2 z"/>
+  <!-- outer ripple ring -->
+  <circle cx="32" cy="32" r="29" fill="none" stroke="url(#pp-ripple)" stroke-width="4" opacity="0.28"/>
+  <!-- middle ripple ring -->
+  <circle cx="32" cy="32" r="20" fill="none" stroke="url(#pp-ripple)" stroke-width="4.5" opacity="0.6"/>
+  <!-- core identity -->
+  <circle cx="32" cy="32" r="11" fill="url(#pp-ripple)"/>
+  <!-- active satellite profile -->
+  <circle cx="44" cy="20" r="5" fill="#5EEAD4"/>
 </svg>

@@ -34,8 +34,8 @@ function SpeedBadge({ testing, result }: { testing: boolean; result?: SpeedResul
   if (testing) return <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--color-text-muted)] shrink-0" />
   if (!result) return null
   const suffix = result.engine ? ` (${result.engine})` : ''
-  if (!result.ok) return <span className="text-xs text-red-500 shrink-0 whitespace-nowrap">失败{suffix}</span>
-  const color = result.latencyMs < 200 ? 'text-green-500' : result.latencyMs < 500 ? 'text-yellow-500' : 'text-red-500'
+  if (!result.ok) return <span className="text-xs text-[var(--danger)] shrink-0 whitespace-nowrap">失败{suffix}</span>
+  const color = result.latencyMs < 200 ? 'text-[var(--success)]' : result.latencyMs < 500 ? 'text-[var(--warning)]' : 'text-[var(--danger)]'
   return <span className={`text-xs font-medium shrink-0 whitespace-nowrap ${color}`}>{result.latencyMs}ms{suffix}</span>
 }
 
@@ -46,7 +46,7 @@ export function ProxyRow({ proxy, selected, testing, speedResult, displayConfig,
   return (
     <div
       onClick={onSelect}
-      className={`w-full px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors border-b border-[var(--color-border)]/40 last:border-0 overflow-hidden ${
+      className={`w-full px-4 py-2.5 flex items-center gap-3 cursor-pointer transition-colors border-b border-[var(--border-subtle)] last:border-0 overflow-hidden ${
         selected ? 'bg-[var(--color-primary)]/10' : 'hover:bg-[var(--color-bg-hover)]'
       }`}
     >
@@ -80,7 +80,7 @@ export function ProxyRow({ proxy, selected, testing, speedResult, displayConfig,
         onClick={onDelete}
         disabled={disableDelete}
         title={isDirect ? '直连不可删除' : '删除代理'}
-        className="shrink-0 p-1 rounded text-[var(--color-text-muted)] hover:text-red-500 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+        className="shrink-0 p-1 rounded text-[var(--color-text-muted)] hover:text-[var(--danger)] hover:bg-[var(--danger-soft)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>

@@ -56,7 +56,7 @@ export function BatchToolbar({
           variant="ghost"
           onClick={onBatchDelete}
           title="批量删除"
-          className="text-red-500 hover:text-red-600"
+          className="text-[var(--danger)] hover:text-[var(--danger)]"
         >
           <Trash2 className="w-3.5 h-3.5" />删除
         </Button>

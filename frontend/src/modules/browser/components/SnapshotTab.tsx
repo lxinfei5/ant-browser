@@ -87,8 +87,8 @@ export function SnapshotTab({ profileId, running }: Props) {
 
   const columns: TableColumn<SnapshotInfo>[] = [
     { key: 'name', title: '名称' },
-    { key: 'sizeMB', title: '大小', render: v => formatSize(v as number) },
-    { key: 'createdAt', title: '创建时间', render: v => formatTime(v as string) },
+    { key: 'sizeMB', title: '大小', render: v => <span className="font-numeric">{formatSize(v as number)}</span> },
+    { key: 'createdAt', title: '创建时间', render: v => <span className="font-numeric">{formatTime(v as string)}</span> },
     {
       key: 'snapshotId',
       title: '操作',
