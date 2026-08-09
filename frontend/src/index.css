@@ -23,9 +23,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   line-height: 1.6;
-  /* Progressive enhancement: tabular digits where the active face supports it
-     (SF / Segoe UI). PingFang SC & Microsoft YaHei lack a tnum glyph, so real
-     numeric columns still use var(--font-numeric) — this is a safe no-op there. */
+  /* Tabular digits where the active face supports them (Monaco does). CJK faces
+     (PingFang SC / Microsoft YaHei) lack a tnum glyph, so numeric columns also
+     pin var(--font-numeric) — this is a safe no-op there. */
   font-variant-numeric: tabular-nums;
   transition: background-color var(--dur-med) var(--ease), color var(--dur-med) var(--ease);
 }

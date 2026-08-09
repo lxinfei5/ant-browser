@@ -61,23 +61,18 @@
   --shadow-lg: 0 16px 40px rgba(16, 24, 40, 0.14);
 
   /* --- typography --- */
-  /* System UI stack (offline-safe, no webfont). Sans for body text; mono is
-     the canonical chain for numbers / IDs / proxy strings / code / chart ticks.
-     Font matching is per-character: macOS renders Latin via -apple-system (SF)
-     and CJK via PingFang SC; Windows renders Latin via Segoe UI and CJK via
-     Microsoft YaHei. 'Microsoft YaHei' is never installed on stock macOS (only
-     bundled inside Office.app, invisible to the browser), so it safely no-ops
-     there and resolves on Windows. */
-  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
-    'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
-  /* Mono chain: ui-monospace resolves to SF Mono on Safari (harmlessly skipped
-     by Chromium/Electron), Monaco is the preferred macOS face, Menlo its macOS
-     fallback, Cascadia Mono modern Windows 11, Consolas the guaranteed Windows
-     ClearType anchor. PingFang SC has no tabular-digit glyph and Microsoft
-     YaHei has no documented tnum, so numeric columns MUST use this chain rather
-     than relying on tabular-nums alone. */
-  --font-mono: ui-monospace, Monaco, Menlo, 'Cascadia Mono', Consolas,
-    'Courier New', monospace;
+  /* Global Monaco-first stack (per product direction): body text AND the
+     numeric/code chain both lead with Monaco, falling back to Microsoft YaHei
+     then CJK/system faces. Monaco has no CJK glyphs, so Chinese text walks the
+     chain: YaHei (Windows / Office installs) → PingFang SC (stock macOS).
+     Offline-safe — no webfonts. */
+  --font-sans: Monaco, 'Microsoft YaHei', 'PingFang SC', 'Hiragino Sans GB',
+    'Helvetica Neue', Arial, sans-serif;
+  /* Numeric / code chain: numbers (stats, table value columns, timestamps,
+     latency, chart ticks) and code/ID text lead with Monaco too, so the whole
+     app reads as one typeface. PingFang SC / YaHei lack a tnum glyph, so these
+     columns rely on the mono face (Monaco) for tabular digits. */
+  --font-mono: Monaco, 'Microsoft YaHei', 'Courier New', monospace;
   /* Semantic alias: numbers (stats, table value columns, timestamps, latency,
      chart ticks). Single source of truth — points at the mono chain. */
   --font-numeric: var(--font-mono);
