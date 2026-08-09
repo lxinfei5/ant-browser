@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"ant-chrome/backend/internal/apppath"
 	"ant-chrome/backend/internal/backup"
 	"fmt"
 	"strings"
@@ -48,7 +49,7 @@ func (a *App) BackupExportPackage() (map[string]interface{}, error) {
 	savePath = backupEnsureZipSuffix(savePath)
 	a.backupEmitExportProgress("preparing", 8, "正在收集导出范围...")
 
-	scope, err := backup.BuildScope(backup.BuildOptions{AppRoot: a.appRoot, Config: a.config})
+	scope, err := backup.BuildScope(backup.BuildOptions{AppRoot: apppath.StateRoot(a.appRoot), Config: a.config})
 	if err != nil {
 		a.backupEmitExportProgress("error", 100, fmt.Sprintf("导出失败: %v", err))
 		return nil, err

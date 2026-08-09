@@ -1,6 +1,7 @@
 package backend
 
 import (
+	"ant-chrome/backend/internal/apppath"
 	"ant-chrome/backend/internal/backup"
 	"fmt"
 	"os"
@@ -97,13 +98,15 @@ func (a *App) buildBackupExportFn() backupExportFn {
 		if a.config == nil {
 			return "", fmt.Errorf("config is not available")
 		}
-		dir := filepath.Join(a.appRoot, "data", "backups")
+		// detached 模式下 data 落在用户状态目录，必须经 resolveAppPath 解析，
+		// 否则会把备份写进 .app 包内（read-only / seal 失效），且导出的源目录也会找不到。
+		dir := a.resolveAppPath(filepath.Join("data", "backups"))
 		if err := os.MkdirAll(dir, 0o755); err != nil {
 			return "", fmt.Errorf("创建备份目录失败: %w", err)
 		}
 		zipPath := filepath.Join(dir, fmt.Sprintf("profilepool-backup-%s.zip", time.Now().Format("20060102-150405")))
 
-		scope, err := backup.BuildScope(backup.BuildOptions{AppRoot: a.appRoot, Config: a.config})
+		scope, err := backup.BuildScope(backup.BuildOptions{AppRoot: apppath.StateRoot(a.appRoot), Config: a.config})
 		if err != nil {
 			return "", err
 		}
