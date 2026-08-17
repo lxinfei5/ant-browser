@@ -10,7 +10,7 @@ const ManifestKey = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0hO4LIBLrkFJeCc
 
 const SourceURL = "builtin://force-font"
 
-const Version = "3.1.1"
+const Version = "3.1.2"
 
 //go:embed all:files
 var Files embed.FS

@@ -18,14 +18,16 @@
   const YAHEI_SIZE_ADJUST = '95%';
 
   /*
-   * 字体回退顺序：
+   * 字体回退顺序（逐字形回退）：
    * 英文、数字 → Monaco
+   * 没有 Monaco → Consolas（Windows 自带等宽兜底）
    * 中文       → 缩放到 95% 的微软雅黑
    * 没有微软雅黑 → 苹方等系统中文字体
    */
   const FONT_STACK = [
-    '"FF Microsoft YaHei"',
     '"Monaco"',
+    '"Consolas"',
+    '"FF Microsoft YaHei"',
     '"Microsoft YaHei"',
     '"Microsoft YaHei UI"',
     '"PingFang SC"',
