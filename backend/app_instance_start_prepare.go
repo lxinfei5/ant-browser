@@ -256,6 +256,9 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 	if err := writeBrowserLanguagePreferences(userDataDir, fingerprintLaunchArgs); err != nil {
 		log.Error("浏览器语言偏好写入失败", logger.F("profile_id", input.ProfileID), logger.F("error", err.Error()))
 	}
+	if err := writeExtensionDeveloperMode(userDataDir); err != nil {
+		log.Error("插件开发者模式写入失败", logger.F("profile_id", input.ProfileID), logger.F("error", err.Error()))
+	}
 
 	if detection, ok := detectBrowserRuntimeByActivePort(userDataDir); ok && detection.DebugReady {
 		a.markProfileLastLaunchArgsLocked(profile, nil)
@@ -333,10 +336,10 @@ func buildBrowserLaunchArgs(userDataDir string, debugPort int, effectiveProxy st
 
 	if dirs := normalizeNonEmptyStrings(extensionDirs); len(dirs) > 0 {
 		extensionArg := strings.Join(dirs, ",")
-		// 官方 Chrome 137+ 已忽略 --load-extension；--enable-unsafe-extension-debugging
-		// 允许启动后经 CDP Extensions.loadUnpacked 装入。Chromium 仍走 --load-extension。
+		// 官方 Chrome 137+ 忽略 --load-extension。必须用 --enable-unsafe-extension-debugging
+		// + CDP Extensions.loadUnpacked。不要再加 --disable-extensions-except：它会让
+		// CDP 装入的插件只写进 Preferences、运行时却不启用。
 		args = append(args, "--enable-unsafe-extension-debugging")
-		args = append(args, fmt.Sprintf("--disable-extensions-except=%s", extensionArg))
 		args = append(args, fmt.Sprintf("--load-extension=%s", extensionArg))
 	}
 

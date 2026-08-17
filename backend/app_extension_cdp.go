@@ -1,7 +1,10 @@
 package backend
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"ant-chrome/backend/internal/logger"
@@ -64,4 +67,43 @@ func (a *App) loadProfileExtensionsViaCDP(profileID string, debugPort int, profi
 		return
 	}
 	applyLoadedExtensionsViaCDP(debugPort, a.browserMgr.EnabledExtensionDirsForProfile(profileID), profile, profileID)
+}
+
+func writeExtensionDeveloperMode(userDataDir string) error {
+	userDataDir = strings.TrimSpace(userDataDir)
+	if userDataDir == "" {
+		return nil
+	}
+	profileDir := filepath.Join(userDataDir, "Default")
+	if err := os.MkdirAll(profileDir, 0o755); err != nil {
+		return err
+	}
+	prefsPath := filepath.Join(profileDir, "Preferences")
+	prefs := map[string]any{}
+	if data, err := os.ReadFile(prefsPath); err == nil && len(strings.TrimSpace(string(data))) > 0 {
+		if err := json.Unmarshal(data, &prefs); err != nil {
+			return fmt.Errorf("解析浏览器偏好失败: %w", err)
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	extensions, _ := prefs["extensions"].(map[string]any)
+	if extensions == nil {
+		extensions = map[string]any{}
+	}
+	ui, _ := extensions["ui"].(map[string]any)
+	if ui == nil {
+		ui = map[string]any{}
+	}
+	if enabled, _ := ui["developer_mode"].(bool); enabled {
+		return nil
+	}
+	ui["developer_mode"] = true
+	extensions["ui"] = ui
+	prefs["extensions"] = extensions
+	data, err := json.Marshal(prefs)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(prefsPath, data, 0o644)
 }

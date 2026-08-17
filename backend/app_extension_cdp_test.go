@@ -1,8 +1,11 @@
 package backend
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -42,8 +45,10 @@ func TestBuildBrowserLaunchArgsAddsUnsafeExtensionDebugging(t *testing.T) {
 	args := buildBrowserLaunchArgs("profile-dir", 9222, "direct://", []string{"/tmp/ext-a", "/tmp/ext-b"}, nil, nil, nil, nil, false)
 	want := []string{
 		"--enable-unsafe-extension-debugging",
-		"--disable-extensions-except=/tmp/ext-a,/tmp/ext-b",
 		"--load-extension=/tmp/ext-a,/tmp/ext-b",
+	}
+	if containsArgPrefix(args, "--disable-extensions-except") {
+		t.Fatalf("args = %#v, did not want --disable-extensions-except", args)
 	}
 	for _, flag := range want {
 		if !containsExactArg(args, flag) {
@@ -59,6 +64,31 @@ func TestBuildBrowserLaunchArgsOmitsExtensionFlagsWithoutDirs(t *testing.T) {
 		if containsArgPrefix(args, prefix) {
 			t.Fatalf("args = %#v, did not want %s", args, prefix)
 		}
+	}
+}
+
+func TestWriteExtensionDeveloperMode(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	if err := writeExtensionDeveloperMode(dir); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeExtensionDeveloperMode(dir); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "Default", "Preferences"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var prefs map[string]any
+	if err := json.Unmarshal(data, &prefs); err != nil {
+		t.Fatal(err)
+	}
+	extensions, _ := prefs["extensions"].(map[string]any)
+	ui, _ := extensions["ui"].(map[string]any)
+	enabled, _ := ui["developer_mode"].(bool)
+	if !enabled {
+		t.Fatalf("prefs = %s, want developer_mode true", data)
 	}
 }
 
