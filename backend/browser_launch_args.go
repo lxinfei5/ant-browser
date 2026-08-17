@@ -22,6 +22,7 @@ var managedLaunchArgSpecs = []managedLaunchArgSpec{
 	{prefix: "--proxy-pac-url", takesValue: true},
 	{prefix: "--load-extension", takesValue: true},
 	{prefix: "--disable-extensions-except", takesValue: true},
+	{prefix: "--enable-unsafe-extension-debugging", takesValue: false},
 	{prefix: "--ignore-certificate-errors", takesValue: false},
 	{prefix: "--disable-web-security", takesValue: false},
 	{prefix: "--ignore-urlfetcher-cert-requests", takesValue: false},

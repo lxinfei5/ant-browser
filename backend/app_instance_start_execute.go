@@ -70,6 +70,8 @@ func (a *App) startBrowserProfileWithPlan(input browserStartInput, plan *browser
 				a.bindProfileProxyBridge(input.ProfileID, plan.acquiredProxyBridge)
 				plan.releaseProxyBridge = false
 			}
+			// 必须在延后打开启动页之前装入，否则首页拿不到 content script。
+			applyLoadedExtensionsViaCDP(stableDebugPort, plan.extensionDirs, profile, input.ProfileID)
 			if len(plan.deferredStartTargets) > 0 {
 				deferredPlan := deferredStartTargetsPlan{targets: plan.deferredStartTargets, newTabs: plan.deferredStartNewTabs}
 				if err := openDeferredStartTargets(stableDebugPort, deferredPlan); err != nil {

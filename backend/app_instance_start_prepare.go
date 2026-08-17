@@ -266,6 +266,7 @@ func (a *App) prepareBrowserLaunchContext(input browserStartInput, profile *Brow
 			logger.F("pid", detection.PID),
 			logger.F("debug_port", detection.DebugPort),
 		)
+		a.loadProfileExtensionsViaCDP(input.ProfileID, detection.DebugPort, profile)
 		if len(normalizeNonEmptyStrings(input.StartURLs)) == 0 && len(normalizeNonEmptyStrings(input.ExtraLaunchArgs)) == 0 {
 			return nil, nil, nil, "", "", errBrowserStartHandledByRecoveredRuntime
 		}
@@ -330,7 +331,11 @@ func buildBrowserLaunchArgs(userDataDir string, debugPort int, effectiveProxy st
 		args = append(args, fmt.Sprintf("--proxy-server=%s", effectiveProxy))
 	}
 
-	if extensionArg := strings.Join(normalizeNonEmptyStrings(extensionDirs), ","); extensionArg != "" {
+	if dirs := normalizeNonEmptyStrings(extensionDirs); len(dirs) > 0 {
+		extensionArg := strings.Join(dirs, ",")
+		// 官方 Chrome 137+ 已忽略 --load-extension；--enable-unsafe-extension-debugging
+		// 允许启动后经 CDP Extensions.loadUnpacked 装入。Chromium 仍走 --load-extension。
+		args = append(args, "--enable-unsafe-extension-debugging")
 		args = append(args, fmt.Sprintf("--disable-extensions-except=%s", extensionArg))
 		args = append(args, fmt.Sprintf("--load-extension=%s", extensionArg))
 	}
