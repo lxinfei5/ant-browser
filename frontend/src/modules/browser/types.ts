@@ -348,6 +348,7 @@ export interface BrowserExtension {
   sourceUrl: string
   installDir: string
   enabled: boolean
+  builtin?: boolean
   installedAt: string
   updatedAt: string
 }

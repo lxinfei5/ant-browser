@@ -124,6 +124,9 @@ func (m *Manager) InstallExtensionFromWebStoreWithHTTPClient(ctx context.Context
 	if extensionID == "" {
 		return Extension{}, fmt.Errorf("请输入 Chrome 插件 ID 或 Chrome Web Store 链接")
 	}
+	if IsBuiltinExtensionID(extensionID) {
+		return Extension{}, fmt.Errorf("不能覆盖内置插件")
+	}
 	data, err := downloadChromeExtensionCRX(ctx, extensionID, client)
 	if err != nil {
 		return Extension{}, err
@@ -132,6 +135,9 @@ func (m *Manager) InstallExtensionFromWebStoreWithHTTPClient(ctx context.Context
 }
 
 func (m *Manager) InstallExtensionPackageBytes(extensionID string, sourceURL string, data []byte) (Extension, error) {
+	if IsBuiltinExtensionID(NormalizeExtensionID(extensionID)) {
+		return Extension{}, fmt.Errorf("不能覆盖内置插件")
+	}
 	if len(data) == 0 {
 		return Extension{}, fmt.Errorf("插件包为空")
 	}
@@ -157,6 +163,9 @@ func (m *Manager) InstallExtensionPackageBytes(extensionID string, sourceURL str
 	}
 	if resolvedID == "" {
 		return Extension{}, fmt.Errorf("无法识别插件 ID")
+	}
+	if IsBuiltinExtensionID(resolvedID) || IsBuiltinExtensionManifest(manifestData) {
+		return Extension{}, fmt.Errorf("不能覆盖内置插件")
 	}
 
 	installDir := filepath.Join(m.ResolveRelativePath(filepath.Join("data", extensionsRootDir)), resolvedID)
@@ -216,6 +225,9 @@ func (m *Manager) InstallExtensionDirectory(sourceDir string) (Extension, error)
 		return Extension{}, err
 	}
 	extensionID := extensionIDFromManifest(manifestData)
+	if IsBuiltinExtensionID(extensionID) || IsBuiltinExtensionManifest(manifestData) {
+		return Extension{}, fmt.Errorf("这是内置字体插件，无需重复导入")
+	}
 	installDir := filepath.Join(m.ResolveRelativePath(filepath.Join("data", extensionsRootDir)), extensionID)
 	if err := copyExtensionDirectory(normalizedDir, installDir); err != nil {
 		return Extension{}, err
@@ -251,17 +263,7 @@ func (m *Manager) EnabledExtensionDirs() []string {
 	if err != nil {
 		return nil
 	}
-	dirs := make([]string, 0, len(items))
-	for _, item := range items {
-		dir := strings.TrimSpace(item.InstallDir)
-		if dir == "" {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err == nil {
-			dirs = append(dirs, dir)
-		}
-	}
-	return dirs
+	return collectLoadableExtensionDirs(m, items)
 }
 
 func (m *Manager) EnabledExtensionDirsForProfile(profileID string) []string {
@@ -276,14 +278,22 @@ func (m *Manager) EnabledExtensionDirsForProfile(profileID string) []string {
 	if err != nil {
 		return nil
 	}
+	return collectLoadableExtensionDirs(m, items)
+}
+
+func collectLoadableExtensionDirs(m *Manager, items []Extension) []string {
 	dirs := make([]string, 0, len(items))
+	seen := map[string]struct{}{}
 	for _, item := range items {
-		dir := strings.TrimSpace(item.InstallDir)
-		if dir != "" {
-			if _, err := os.Stat(filepath.Join(dir, "manifest.json")); err == nil {
-				dirs = append(dirs, dir)
-			}
+		dir := m.loadableExtensionDir(item)
+		if dir == "" {
+			continue
 		}
+		if _, ok := seen[dir]; ok {
+			continue
+		}
+		seen[dir] = struct{}{}
+		dirs = append(dirs, dir)
 	}
 	return dirs
 }

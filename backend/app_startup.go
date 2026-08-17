@@ -149,6 +149,9 @@ func (a *App) startupInitManagers(cfg *config.Config, db *database.DB) {
 	a.migrateToSQLite()
 
 	a.browserMgr.InitData()
+	if err := a.browserMgr.EnsureBuiltinExtensions(); err != nil {
+		logger.New("Browser").Error("同步内置插件失败", logger.F("error", err))
+	}
 	if err := a.browserMgr.CleanupExpiredTrash(); err != nil {
 		logger.New("Browser").Error("启动清理回收站失败", logger.F("error", err))
 	}

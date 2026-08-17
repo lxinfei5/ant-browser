@@ -217,7 +217,7 @@ export function InstalledExtensionsList({ items, busyId, busyAction, updatingId,
 
         {items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-muted)] px-4 py-8 text-center text-sm text-[var(--color-text-muted)]">
-            暂无插件，先通过上方输入插件 ID 或商店链接安装。
+            暂无插件。内置字体插件会在下次启动时自动同步；其它插件可通过上方安装。
           </div>
         ) : null}
       </div>
@@ -257,6 +257,7 @@ export function InstalledExtensionCard({ item, busy, busyAction, updating, onRes
               <Badge variant={item.enabled ? 'success' : 'error'} size="sm" dot>
                 {item.enabled ? '已启用' : '已停用'}
               </Badge>
+              {item.builtin ? <Badge variant="default" size="sm">内置</Badge> : null}
               {item.version ? <span className="text-xs text-[var(--color-text-muted)]">v{item.version}</span> : null}
               {meta.manifestVersion ? <span className="text-xs text-[var(--color-text-muted)]">MV{meta.manifestVersion}</span> : null}
             </div>
@@ -288,18 +289,22 @@ export function InstalledExtensionCard({ item, busy, busyAction, updating, onRes
             <Users className="h-4 w-4" />
             限制实例
           </Button>
-          <Button type="button" size="sm" variant="secondary" onClick={() => onUpdate(item)} disabled={updating} className={actionButtonClass}>
-            <RotateCw className={`h-4 w-4 ${updating ? 'animate-spin' : ''}`} />
-            更新
-          </Button>
+          {item.builtin ? null : (
+            <Button type="button" size="sm" variant="secondary" onClick={() => onUpdate(item)} disabled={updating} className={actionButtonClass}>
+              <RotateCw className={`h-4 w-4 ${updating ? 'animate-spin' : ''}`} />
+              更新
+            </Button>
+          )}
           <Button type="button" size="sm" variant="secondary" onClick={() => onToggle(item)} disabled={busy} className={actionButtonClass}>
             <Power className={`h-4 w-4 ${busy && busyAction === 'toggle' ? 'animate-pulse' : ''}`} />
             {item.enabled ? '停用' : '启用'}
           </Button>
-          <Button type="button" size="sm" variant="secondary" onClick={() => onDelete(item)} disabled={busy} className={actionButtonClass}>
-            <Trash2 className={`h-4 w-4 ${busy && busyAction === 'delete' ? 'animate-pulse' : ''}`} />
-            删除
-          </Button>
+          {item.builtin ? null : (
+            <Button type="button" size="sm" variant="secondary" onClick={() => onDelete(item)} disabled={busy} className={actionButtonClass}>
+              <Trash2 className={`h-4 w-4 ${busy && busyAction === 'delete' ? 'animate-pulse' : ''}`} />
+              删除
+            </Button>
+          )}
         </div>
       </div>
     </div>

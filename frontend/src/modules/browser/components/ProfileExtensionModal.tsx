@@ -77,7 +77,13 @@ export function ProfileExtensionModal({ open, profile, onClose }: ProfileExtensi
           <input
             type="checkbox"
             checked={configured}
-            onChange={(event) => setConfigured(event.target.checked)}
+            onChange={(event) => {
+              const next = event.target.checked
+              setConfigured(next)
+              if (next && selectedIds.length === 0) {
+                setSelectedIds(extensions.filter((item) => item.enabled).map((item) => item.extensionId))
+              }
+            }}
             className="h-4 w-4 rounded accent-[var(--color-accent)]"
           />
         </label>
@@ -102,6 +108,7 @@ export function ProfileExtensionModal({ open, profile, onClose }: ProfileExtensi
                 <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[var(--color-text-primary)]">
                   <span>{extension.name || extension.extensionId}</span>
                   {extension.version ? <span className="text-xs font-normal text-[var(--color-text-muted)]">v{extension.version}</span> : null}
+                  {extension.builtin ? <span className="rounded bg-[var(--color-bg-muted)] px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">内置</span> : null}
                   {!extension.enabled ? <span className="rounded bg-[var(--color-bg-muted)] px-1.5 py-0.5 text-xs text-[var(--color-text-muted)]">全局停用</span> : null}
                 </div>
                 <div className="mt-1 break-all font-mono text-xs text-[var(--color-text-muted)]">{extension.extensionId}</div>

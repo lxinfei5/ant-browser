@@ -292,6 +292,9 @@ func (a *App) BrowserExtensionDelete(extensionID string) error {
 	if extensionID == "" {
 		return fmt.Errorf("插件 ID 不能为空")
 	}
+	if browser.IsBuiltinExtensionID(extensionID) {
+		return fmt.Errorf("内置插件不能删除，只能停用")
+	}
 	extension, err := a.browserMgr.ExtensionDAO.Get(extensionID)
 	if err != nil {
 		return err

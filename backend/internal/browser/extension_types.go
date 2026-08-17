@@ -10,6 +10,7 @@ type Extension struct {
 	SourceURL    string `json:"sourceUrl"`
 	InstallDir   string `json:"installDir"`
 	Enabled      bool   `json:"enabled"`
+	Builtin      bool   `json:"builtin"`
 	InstalledAt  string `json:"installedAt"`
 	UpdatedAt    string `json:"updatedAt"`
 }

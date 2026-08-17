@@ -1341,6 +1341,7 @@ export namespace browser {
 	    sourceUrl: string;
 	    installDir: string;
 	    enabled: boolean;
+	    builtin: boolean;
 	    installedAt: string;
 	    updatedAt: string;
 	
@@ -1359,6 +1360,7 @@ export namespace browser {
 	        this.sourceUrl = source["sourceUrl"];
 	        this.installDir = source["installDir"];
 	        this.enabled = source["enabled"];
+	        this.builtin = source["builtin"];
 	        this.installedAt = source["installedAt"];
 	        this.updatedAt = source["updatedAt"];
 	    }

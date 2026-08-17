@@ -138,12 +138,14 @@ export function getExtensionManifestMeta(item: BrowserExtension) {
 export function formatExtensionSource(value: string): string {
   const source = value.trim()
   if (!source) return '来源未知'
+  if (source.startsWith('builtin:')) return '内置'
   if (/^https?:\/\//i.test(source)) return 'Chrome Web Store'
   if (/\.(crx|zip)$/i.test(source)) return '本地插件包'
   return '本地目录'
 }
 
 export function extensionStoreURL(item: BrowserExtension): string {
+  if (item.builtin || item.sourceUrl.startsWith('builtin:')) return ''
   if (/^https?:\/\//i.test(item.sourceUrl)) return item.sourceUrl
   if (/^[a-p]{32}$/i.test(item.extensionId)) return `https://chromewebstore.google.com/detail/${item.extensionId}`
   return ''

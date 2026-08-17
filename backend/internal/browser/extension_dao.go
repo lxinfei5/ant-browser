@@ -18,6 +18,7 @@ type ExtensionDAO interface {
 	GetProfileSettings(profileID string) (ProfileExtensionSettings, error)
 	SetProfileSettings(profileID string, extensionIDs []string, configured bool) (ProfileExtensionSettings, error)
 	DeleteProfileSettings(profileID string) error
+	SeedExtensionIntoConfiguredProfiles(extensionID string) error
 }
 
 type SQLiteExtensionDAO struct {
@@ -176,6 +177,23 @@ func (d *SQLiteExtensionDAO) SetProfileSettings(profileID string, extensionIDs [
 	return d.GetProfileSettings(profileID)
 }
 
+func (d *SQLiteExtensionDAO) SeedExtensionIntoConfiguredProfiles(extensionID string) error {
+	extensionID = strings.TrimSpace(extensionID)
+	if extensionID == "" {
+		return fmt.Errorf("插件 ID 不能为空")
+	}
+	now := time.Now().Format(time.RFC3339)
+	_, err := d.db.Exec(`
+		INSERT OR IGNORE INTO browser_profile_extensions (profile_id, extension_id, enabled, created_at, updated_at)
+		SELECT profile_id, ?, 1, ?, ?
+		FROM browser_profile_extension_settings
+		WHERE configured = 1`, extensionID, now, now)
+	if err != nil {
+		return fmt.Errorf("预置内置插件到实例失败: %w", err)
+	}
+	return nil
+}
+
 func (d *SQLiteExtensionDAO) DeleteProfileSettings(profileID string) error {
 	profileID = strings.TrimSpace(profileID)
 	if profileID == "" {
@@ -239,6 +257,7 @@ func scanExtension(scanner extensionScanner) (Extension, error) {
 		return Extension{}, err
 	}
 	extension.Enabled = enabled != 0
+	extension.Builtin = IsBuiltinExtensionID(extension.ExtensionID)
 	return extension, nil
 }
 

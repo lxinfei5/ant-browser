@@ -321,6 +321,10 @@ export function ExtensionManagementPage() {
   }
 
   const handleUpdateExtension = async (item: BrowserExtension) => {
+    if (item.builtin) {
+      toast.warning('内置插件由应用同步，不能从商店更新')
+      return
+    }
     if (useProxy && !downloadProxyConfig) {
       toast.warning('请先选择可用的下载代理')
       return
@@ -376,6 +380,10 @@ export function ExtensionManagementPage() {
   }
 
   const handleDelete = async (item: BrowserExtension) => {
+    if (item.builtin) {
+      toast.warning('内置插件不能删除，只能停用')
+      return
+    }
     if (!window.confirm(`删除插件「${item.name || item.extensionId}」？`)) return
     setBusyId(item.extensionId)
     setBusyAction('delete')

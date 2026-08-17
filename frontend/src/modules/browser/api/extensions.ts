@@ -27,6 +27,7 @@ function normalizeExtension(payload: any): BrowserExtension {
     sourceUrl: String(payload?.sourceUrl || ''),
     installDir: String(payload?.installDir || ''),
     enabled: payload?.enabled !== false,
+    builtin: payload?.builtin === true,
     installedAt: String(payload?.installedAt || ''),
     updatedAt: String(payload?.updatedAt || ''),
   }
