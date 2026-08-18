@@ -1,5 +1,5 @@
 /* Vendored from local Tampermonkey script
- * 强制字体（Monaco + 95% 微软雅黑） v3.1.1
+ * 强制字体（Monaco + 95% 微软雅黑） v3.1.3
  * @grant none. No remote URLs, no @require.
  */
 (function () {
@@ -18,16 +18,27 @@
   const YAHEI_SIZE_ADJUST = '95%';
 
   /*
+   * 限制雅黑别名只覆盖 CJK 表意文字、中文标点与全角字符。
+   * 没有这一行时，雅黑的拉丁字形会抢在 Monaco 前面渲染英文/数字。
+   * 末尾四项让中文语境的弯引号、破折号、省略号也使用雅黑。
+   */
+  const CJK_UNICODE_RANGE =
+    'U+2E80-2EFF, U+3000-303F, U+3400-4DBF, U+4E00-9FFF, ' +
+    'U+F900-FAFF, U+FF00-FFEF, U+20000-2A6DF, ' +
+    'U+2013-2014, U+2018-201D, U+2026';
+
+  /*
    * 字体回退顺序（逐字形回退）：
-   * 英文、数字 → Monaco
-   * 没有 Monaco → Consolas（Windows 自带等宽兜底）
-   * 中文       → 缩放到 95% 的微软雅黑
-   * 没有微软雅黑 → 苹方等系统中文字体
+   * 中文/中文标点 → 缩放到 95% 的微软雅黑（FF 别名经 unicode-range 限定 CJK 区间，
+   *                 不含拉丁字形，放在栈首也不会截胡英文）
+   * 英文、数字     → Monaco
+   * 没有 Monaco    → Consolas（Windows 自带等宽兜底）
+   * 没有微软雅黑   → 苹方等系统中文字体
    */
   const FONT_STACK = [
+    '"FF Microsoft YaHei"',
     '"Monaco"',
     '"Consolas"',
-    '"FF Microsoft YaHei"',
     '"Microsoft YaHei"',
     '"Microsoft YaHei UI"',
     '"PingFang SC"',
@@ -143,7 +154,8 @@
 
   /*
    * FF Microsoft YaHei 是微软雅黑的本地别名。
-   * size-adjust 只缩放微软雅黑，不影响 Monaco 和后续字体。
+   * unicode-range 把它限制在 CJK 区间：中文走雅黑（size-adjust 95%），
+   * 拉丁字符回退给 Monaco，不会被雅黑的拉丁字形截胡。
    */
   const CSS = `
     @font-face {
@@ -153,6 +165,7 @@
       font-weight: 300;
       font-display: swap;
       size-adjust: ${YAHEI_SIZE_ADJUST};
+      unicode-range: ${CJK_UNICODE_RANGE};
     }
 
     @font-face {
@@ -162,6 +175,7 @@
       font-weight: 400;
       font-display: swap;
       size-adjust: ${YAHEI_SIZE_ADJUST};
+      unicode-range: ${CJK_UNICODE_RANGE};
     }
 
     @font-face {
@@ -171,6 +185,7 @@
       font-weight: 700;
       font-display: swap;
       size-adjust: ${YAHEI_SIZE_ADJUST};
+      unicode-range: ${CJK_UNICODE_RANGE};
     }
 
     :where(*:not(:is(${SKIP_SELECTORS.join(',')}))) {
