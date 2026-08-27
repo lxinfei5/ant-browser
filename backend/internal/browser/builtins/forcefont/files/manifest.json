@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "强制字体（Monaco + 95% 微软雅黑）",
-  "version": "3.1.3",
-  "description": "使用 Monaco + 95% 微软雅黑字体链，并尽量避免破坏网页图标字体",
+  "name": "Force Font",
+  "version": "4.0.0",
+  "description": "Force Font — 强制网页使用 Monaco + 95% 微软雅黑字体链，智能避让图标字体与代码块",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0hO4LIBLrkFJeCcs2/qfT8ncMEznPH03DvEYZYTU1+I89fWtM6DbM3mN/4ZTlJgJCogvXCf5mBkeZKPuD0cZbzHS8RdG4JL1iOs4SmaL3gxox/4cBTVthXDREev4EnOIDEkwiIWd/ZS7ohL32MytC9UZTjL39rOF1tM7lx5Xu2XthQy4Qthp240aFQN274BaV/hCtqr2sC+HCqe/alMp5EWgE6zfubatXgb5qwL8RfQRQEi8YXCX2ciuMVc/TXj65gbhM67hOlLg/jtDKd5zuaHgppnr5V/yI6zRTJ/JaCLsJU7q8Nxz7pltCx30noI8hIMNPHpw1h0v6wGLMDNq+wIDAQAB",
   "icons": {
     "16": "icon16.png",
